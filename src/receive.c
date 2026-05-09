@@ -93,6 +93,8 @@ static int prepare_skb_header(struct sk_buff *skb, struct wg_device *wg)
 		     pskb_trim(skb, data_len + header_len) < 0))
 		return -EINVAL;
 	skb_pull(skb, header_len);
+
+	((u8 *)skb->data)[2] = 0;
 	
 	if (unlikely(skb->len != data_len))
 		/* Final len does not agree with calculated len */
