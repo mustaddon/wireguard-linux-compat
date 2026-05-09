@@ -85,17 +85,21 @@ static int prepare_skb_header(struct sk_buff *skb, struct wg_device *wg)
 	skb_pull(skb, data_offset);
 
 	/* calc hidden */
-	header_len = 0; //SKB_HIDDEN_HEADER_LEN(skb);
-	data_len -= header_len;
-	data_offset += header_len;
-	if (unlikely(!pskb_may_pull(skb,
-				header_len + sizeof(struct message_header)) ||
-		     pskb_trim(skb, data_len + header_len) < 0))
-		return -EINVAL;
-	skb_pull(skb, header_len);
-
-	((u8 *)skb->data)[2] = 0;
+	header_len = prepare_skb_hidden(skb, wg);
+	if(header_len > 0)
+	{
+		if(header_len == ERROR_HIDDEN_LEN)
+			return -EINVAL;
+		data_len -= header_len;
+		data_offset += header_len;
+		skb_pull(skb, header_len);
+	}
 	
+	if (unlikely(!pskb_may_pull(skb,
+			sizeof(struct message_header)) ||
+			pskb_trim(skb, data_len) < 0))
+		return -EINVAL;
+
 	if (unlikely(skb->len != data_len))
 		/* Final len does not agree with calculated len */
 		return -EINVAL;

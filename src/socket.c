@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
+#include "hidden.h"
 #include "device.h"
 #include "peer.h"
 #include "socket.h"
@@ -196,7 +197,8 @@ int wg_socket_send_buffer_to_peer(struct wg_peer *peer, void *buffer,
 
 	skb_reserve(skb, SKB_HEADER_LEN);
 	skb_set_inner_network_header(skb, 0);
-	((u8 *)skb_put_data(skb, buffer, len))[2]=0xFF;
+	skb_put_hidden_data(skb, buffer, len);
+	skb_put_data(skb, buffer, len);
 	return wg_socket_send_skb_to_peer(peer, skb, ds);
 }
 
@@ -219,6 +221,7 @@ int wg_socket_send_buffer_as_reply_to_skb(struct wg_device *wg,
 		return -ENOMEM;
 	skb_reserve(skb, SKB_HEADER_LEN);
 	skb_set_inner_network_header(skb, 0);
+	skb_put_hidden_data(skb, buffer, len);
 	skb_put_data(skb, buffer, len);
 
 	if (endpoint.addr.sa_family == AF_INET)

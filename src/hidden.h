@@ -2,6 +2,9 @@
 #define _WG_HIDDEN_H
 
 #include "messages.h"
+#include "device.h"
+
+#define	ERROR_HIDDEN_LEN 0xFFFF
 
 #define HIDDEN_TYPE(val) ((val)&7)
 #define MSG_HIDDEN_TYPE(msg) HIDDEN_TYPE(le32_to_cpu(((struct message_header *)(msg))->type))
@@ -25,5 +28,10 @@ void hidden_header_init(struct hidden_header *header, enum message_type type);
 
 void skb_put_hidden_header(void *skb, struct hidden_header *header);
 
+
+
+size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg);
+
+void skb_put_hidden_data(void *skb, void *buffer, size_t len);
 
 #endif 

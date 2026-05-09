@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
+#include "hidden.h"
 #include "queueing.h"
 #include "timers.h"
 #include "device.h"
@@ -208,6 +209,7 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
 	header->header.type = cpu_to_le32(MESSAGE_DATA);
 	header->key_idx = keypair->remote_index;
 	header->counter = cpu_to_le64(PACKET_CB(skb)->nonce);
+	skb_put_hidden_data(skb, header, sizeof(*header));
 	pskb_put(skb, trailer, trailer_len);
 
 	/* Now we can encrypt the scattergather segments */
