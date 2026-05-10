@@ -5,6 +5,7 @@
 #include "device.h"
 
 #define	ERROR_HIDDEN_LEN 0xFFFF
+#define	HIDDEN_XOR 0x8cb51d5e
 
 #define HIDDEN_TYPE(val) ((val)&7)
 #define MSG_HIDDEN_TYPE(msg) HIDDEN_TYPE(le32_to_cpu(((struct message_header *)(msg))->type))
