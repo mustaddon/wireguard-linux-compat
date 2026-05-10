@@ -67,7 +67,8 @@ void skb_put_hidden_data(void *skb, void *buffer, size_t len)
 {
     __le32 type = ((u8 *)buffer)[0];
     
-    ((u8 *)buffer)[2]=(len==32 ? 0xFF : 0);
+    ((u8 *)buffer)[1]=(len==32 ? 1 : 0);
+    ((u8 *)buffer)[2]=len;
 
     switch (type) {
         case MESSAGE_DATA:
