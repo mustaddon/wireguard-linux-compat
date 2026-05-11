@@ -35,6 +35,8 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg);
 
 void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg);
 
-void skb_put_hidden_data(void *skb, void *buffer, size_t len);
+void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen);
+
+unsigned int hidden_data_header_len(unsigned int len);
 
 #endif 

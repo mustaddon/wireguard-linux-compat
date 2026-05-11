@@ -1,5 +1,6 @@
 #include "hidden.h"
 
+#define HIDDEN_HEADER_LEN_RAW(val) (((val)&7) + 1)
 
 static void xor_mac2(void *skb, size_t len, int xor)
 {
@@ -63,7 +64,16 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     return hlen;
 }
 
-void skb_put_hidden_header(void *skb)
+
+static void skb_put_hidden_header_len(void *skb, unsigned int hlen)
+{
+    u8 *ptr = (u8 *)skb_push(skb, hlen);
+    get_random_bytes(ptr, hlen);
+    ptr[0] = (ptr[0]>>5) | hlen;
+    if(ptr[0]<16) ptr[0] |= 128;
+}
+
+static void skb_put_hidden_header(void *skb)
 {
     int hlen;
     u8 *ptr;
@@ -85,51 +95,34 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
         case MESSAGE_HANDSHAKE_INITIATION:
             SKB_XOR1(buffer, HIDDEN_XOR);
             xor_mac2(buffer, sizeof(struct message_handshake_initiation), HIDDEN_XOR);
-            skb_put_hidden_header(skb);
             break;
 
         case MESSAGE_HANDSHAKE_RESPONSE:
             SKB_XOR2(buffer, HIDDEN_XOR);
             xor_mac2(buffer, sizeof(struct message_handshake_response), HIDDEN_XOR);
-            skb_put_hidden_header(skb);
             break;
 
         case MESSAGE_HANDSHAKE_COOKIE:
             SKB_XOR1(buffer, HIDDEN_XOR);
-            skb_put_hidden_header(skb);
             break;
     }
+
+    skb_put_hidden_header(skb);
 }
 
-void skb_put_hidden_data(void *skb, void *buffer, size_t len)
+unsigned int hidden_data_header_len(unsigned int len)
 {
-    int type = ((u8 *)buffer)[0];
+    //return 0;
+    return len!=32 ? 0 : HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns());
+}
+
+void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen)
+{
     //int noise = type|(((u32)ktime_get_coarse_boottime_ns())<<3);
     //((__le32 *)buffer)[0] = cpu_to_le32(noise);
     
-    switch (type) {
-        case MESSAGE_DATA:
-            SKB_XOR3(buffer, HIDDEN_XOR);
-            //if(len==32) skb_put_hidden_header(skb);
-            break;
-
-        case MESSAGE_HANDSHAKE_INITIATION:
-            SKB_XOR1(buffer, HIDDEN_XOR);
-            xor_mac2(buffer, sizeof(struct message_handshake_initiation), HIDDEN_XOR);
-            skb_put_hidden_header(skb);
-            break;
-
-        case MESSAGE_HANDSHAKE_RESPONSE:
-            SKB_XOR2(buffer, HIDDEN_XOR);
-            xor_mac2(buffer, sizeof(struct message_handshake_response), HIDDEN_XOR);
-            skb_put_hidden_header(skb);
-            break;
-
-        case MESSAGE_HANDSHAKE_COOKIE:
-            SKB_XOR1(buffer, HIDDEN_XOR);
-            skb_put_hidden_header(skb);
-            break;
-    }
+    SKB_XOR3(buffer, HIDDEN_XOR);
+    if(hlen > 0) skb_put_hidden_header_len(skb, hlen);
 }
 
 

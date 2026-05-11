@@ -164,7 +164,7 @@ static unsigned int calculate_skb_padding(struct sk_buff *skb)
 static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
 			   simd_context_t *simd_context)
 {
-	unsigned int padding_len, plaintext_len, trailer_len;
+	unsigned int padding_len, plaintext_len, trailer_len, hidden_len;
 	struct scatterlist sg[MAX_SKB_FRAGS + 8];
 	struct message_data *header;
 	struct sk_buff *trailer;
@@ -193,7 +193,8 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
 	/* Expand head section to have room for our header and the network
 	 * stack's headers.
 	 */
-	if (unlikely(skb_cow_head(skb, DATA_PACKET_HEAD_ROOM) < 0))
+	hidden_len = hidden_data_header_len(skb->len + trailer_len);
+	if (unlikely(skb_cow_head(skb, hidden_len + DATA_PACKET_HEAD_ROOM) < 0))
 		return false;
 
 	/* Finalize checksum calculation for the inner packet, if required. */
@@ -209,12 +210,12 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
 	header->header.type = cpu_to_le32(MESSAGE_DATA);
 	header->key_idx = keypair->remote_index;
 	header->counter = cpu_to_le64(PACKET_CB(skb)->nonce);
-	skb_put_hidden_data(skb, header, skb->len + trailer_len);
+	skb_put_hidden_data(skb, header, hidden_len);
 	pskb_put(skb, trailer, trailer_len);
 
 	/* Now we can encrypt the scattergather segments */
 	sg_init_table(sg, num_frags);
-	if (skb_to_sgvec(skb, sg, sizeof(struct message_data),
+	if (skb_to_sgvec(skb, sg, hidden_len + sizeof(struct message_data),
 			 noise_encrypted_len(plaintext_len)) <= 0)
 		return false;
 	return chacha20poly1305_encrypt_sg_inplace(sg, plaintext_len, NULL, 0,
