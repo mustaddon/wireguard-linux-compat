@@ -12,7 +12,7 @@ const unsigned char hidsrc[32] = {
 #define HIDDEN_HEADER_LEN_RAW(val) (((val)&7) + 1)
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 
-#define	SKB_XOR(skb, wg) (((int *)(skb))[0]^((int *)(hidsrc))[1])
+#define	SKB_XOR(skb, wg) ((((int *)(skb))[0])^(((int *)(hidsrc))[1]))
 #define	SKB_XOR1(skb, xor) ((int *)(skb))[1]^=(xor);
 #define	SKB_XOR2(skb, xor) ((int *)(skb))[1]^=(xor); ((int *)(skb))[2]^=(xor);
 #define	SKB_XOR3(skb, xor) ((int *)(skb))[1]^=(xor); ((int *)(skb))[2]^=(xor); ((int *)(skb))[3]^=(xor);
