@@ -41,7 +41,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
 
     switch (type) {
         case MESSAGE_DATA:
-            if (unlikely(!pskb_may_pull(skb, 16)))
+            if (unlikely(!pskb_may_pull(skb, sizeof(struct message_data))))
                 return ERROR_HIDDEN_LEN;
             SKB_XOR3(skb->data, HIDDEN_XOR);
             break;
@@ -114,11 +114,13 @@ unsigned int hidden_data_header_len(unsigned int len)
     return len != 32 ? 0 : HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns());
 }
 
-void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen)
+void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_device *wg)
 {
     //int noise = type|(((u32)ktime_get_coarse_boottime_ns())<<3);
     //((__le32 *)buffer)[0] = cpu_to_le32(noise);
 
+    //((u16 *)buffer)[1] = cpu_to_le16(wg->incoming_port);
+    
     SKB_XOR3(buffer, HIDDEN_XOR);
     if(hlen > 0) skb_put_hidden_header(skb, hlen);
 }
