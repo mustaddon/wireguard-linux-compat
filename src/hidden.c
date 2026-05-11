@@ -111,7 +111,8 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
 
 unsigned int hidden_data_header_len(unsigned int len)
 {
-    return len != 32 ? 0 : HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns());
+    return 0;
+    //return len != 32 ? 0 : HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns());
 }
 
 void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen)
