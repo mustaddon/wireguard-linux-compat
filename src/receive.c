@@ -90,7 +90,6 @@ static int prepare_skb_header(struct sk_buff *skb, struct wg_device *wg)
 			return -EINVAL;
 		data_len -= header_len;
 		data_offset += header_len;
-		//skb_pull(skb, header_len);
 	}
 	
 	if (unlikely(pskb_trim(skb, data_len) < 0))
