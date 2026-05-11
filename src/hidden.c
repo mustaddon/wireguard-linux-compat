@@ -13,7 +13,7 @@ const unsigned char hidsrc[32] = {
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 
 #define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(hidsrc))[i]))
-#define	SKB_XOR(skb, wg, i) (((int *)(skb))[i]^=GET_XOR(skb, wg, i))
+#define	SKB_XOR(skb, wg, i) ((int *)(skb))[i]^=GET_XOR(skb, wg, i)
 #define	XOR_HS_INIT(skb, wg) SKB_XOR(skb, wg, 1)
 #define	XOR_HS_RESP(skb, wg) SKB_XOR(skb, wg, 1);SKB_XOR(skb, wg, 2)
 #define	XOR_HS_COOK(skb, wg) SKB_XOR(skb, wg, 1)
@@ -30,7 +30,7 @@ static void xor_mac2(void *skb, size_t len, struct wg_device *wg)
 
 size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg) 
 {
-    int type, xor;
+    int type;
     size_t hlen = 0;
 
     if (unlikely(!pskb_may_pull(skb, 9)))
@@ -44,8 +44,6 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
         type = HIDDEN_TYPE(((u8 *)skb->data)[hlen]);
         skb_pull(skb, hlen);
     }
-
-    xor = GET_XOR(skb->data, wg, 1);
 
     switch (type) {
         case MESSAGE_DATA:
@@ -78,11 +76,10 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
             return ERROR_HIDDEN_LEN;
     }
 
-    ((struct message_header *)(skb->data))->type = cpu_to_le32(type);
+    ((__le32 *)(skb->data))[0] = cpu_to_le32(type);
 
     return hlen;
 }
-
 
 static void skb_put_hidden_header(void *skb, unsigned int hlen)
 {
