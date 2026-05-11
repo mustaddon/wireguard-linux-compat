@@ -6,12 +6,16 @@
 #define HIDDEN_HEADER_LEN_RAW(val) (((val)&7) + 1)
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 
-#define	HIDDEN_XOR 0x8cb51d5e
-
+#define	SKB_XOR(skb, src) (((int *)(src))[1])
 #define	SKB_XOR1(skb, xor) ((int *)(skb))[1]^=xor;
 #define	SKB_XOR2(skb, xor) ((int *)(skb))[1]^=xor; ((int *)(skb))[2]^=xor;
 #define	SKB_XOR3(skb, xor) ((int *)(skb))[1]^=xor; ((int *)(skb))[2]^=xor; ((int *)(skb))[3]^=xor;
 
+const unsigned char hidden_source[32] = { 
+    0x88, 0xab, 0xa4, 0x0d, 0xb7, 0x69, 0x42, 0x2b, 
+    0xd0, 0x79, 0x2d, 0x65, 0xce, 0x69, 0x1f, 0x82, 
+    0x98, 0x31, 0x89, 0xab, 0xd6, 0x5c, 0x85, 0x90, 
+    0x8b, 0x90, 0x52, 0x33, 0x17, 0xff, 0x18, 0x57 };
 
 static void xor_mac2(void *skb, size_t len, int xor)
 {
@@ -24,7 +28,7 @@ static void xor_mac2(void *skb, size_t len, int xor)
 
 size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg) 
 {
-    int type;
+    int type, xor;
     size_t hlen = 0;
 
     if (unlikely(!pskb_may_pull(skb, 9)))
@@ -39,31 +43,33 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
         skb_pull(skb, hlen);
     }
 
+    xor = SKB_XOR(skb, hidden_source);
+
     switch (type) {
         case MESSAGE_DATA:
             if (unlikely(!pskb_may_pull(skb, sizeof(struct message_data))))
                 return ERROR_HIDDEN_LEN;
-            SKB_XOR3(skb->data, HIDDEN_XOR);
+            SKB_XOR3(skb->data, xor);
             break;
 
         case MESSAGE_HANDSHAKE_INITIATION:
             if (unlikely(!pskb_may_pull(skb, sizeof(struct message_handshake_initiation))))
                 return ERROR_HIDDEN_LEN;
-            SKB_XOR1(skb->data, HIDDEN_XOR);
-            xor_mac2(skb->data, sizeof(struct message_handshake_initiation), HIDDEN_XOR);
+            SKB_XOR1(skb->data, xor);
+            xor_mac2(skb->data, sizeof(struct message_handshake_initiation), xor);
             break;
 
         case MESSAGE_HANDSHAKE_RESPONSE:
             if (unlikely(!pskb_may_pull(skb, sizeof(struct message_handshake_response))))
                 return ERROR_HIDDEN_LEN;
-            SKB_XOR2(skb->data, HIDDEN_XOR);
-            xor_mac2(skb->data, sizeof(struct message_handshake_response), HIDDEN_XOR);
+            SKB_XOR2(skb->data, xor);
+            xor_mac2(skb->data, sizeof(struct message_handshake_response), xor);
             break;
 
         case MESSAGE_HANDSHAKE_COOKIE:
             if (unlikely(!pskb_may_pull(skb, 8)))
                 return ERROR_HIDDEN_LEN;
-            SKB_XOR1(skb->data, HIDDEN_XOR);
+            SKB_XOR1(skb->data, xor);
             break;
 
         default:
@@ -89,20 +95,21 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
     int type = ((u8 *)buffer)[0];
     //int noise = type|(((u32)ktime_get_coarse_boottime_ns())<<3);
     //((__le32 *)buffer)[0] = cpu_to_le32(noise);
+    int xor = SKB_XOR(buffer, hidden_source);
     
     switch (type) {
         case MESSAGE_HANDSHAKE_INITIATION:
-            SKB_XOR1(buffer, HIDDEN_XOR);
-            xor_mac2(buffer, sizeof(struct message_handshake_initiation), HIDDEN_XOR);
+            SKB_XOR1(buffer, xor);
+            xor_mac2(buffer, sizeof(struct message_handshake_initiation), xor);
             break;
 
         case MESSAGE_HANDSHAKE_RESPONSE:
-            SKB_XOR2(buffer, HIDDEN_XOR);
-            xor_mac2(buffer, sizeof(struct message_handshake_response), HIDDEN_XOR);
+            SKB_XOR2(buffer, xor);
+            xor_mac2(buffer, sizeof(struct message_handshake_response), xor);
             break;
 
         case MESSAGE_HANDSHAKE_COOKIE:
-            SKB_XOR1(buffer, HIDDEN_XOR);
+            SKB_XOR1(buffer, xor);
             break;
     }
 
@@ -116,11 +123,14 @@ unsigned int hidden_data_header_len(unsigned int len)
 
 void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_device *wg)
 {
+    int xor = SKB_XOR(buffer, hidden_source);
     //int noise = type|(((u32)ktime_get_coarse_boottime_ns())<<3);
     //((__le32 *)buffer)[0] = cpu_to_le32(noise);
 
     //((u16 *)buffer)[1] = cpu_to_le16(wg->incoming_port);
+
+    ((u16 *)buffer)[1] = ((u16 *)hidden_source)[0];
     
-    SKB_XOR3(buffer, HIDDEN_XOR);
+    SKB_XOR3(buffer, xor);
     if(hlen > 0) skb_put_hidden_header(skb, hlen);
 }
