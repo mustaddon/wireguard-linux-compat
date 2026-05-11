@@ -75,17 +75,42 @@ void skb_put_hidden_header(void *skb)
     if(hlen>1) get_random_bytes(ptr+1, hlen-1);
 }
 
+void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
+{
+    int type = ((u8 *)buffer)[0];
+    //int noise = type|(((u32)ktime_get_coarse_boottime_ns())<<3);
+    //((__le32 *)buffer)[0] = cpu_to_le32(noise);
+    
+    switch (type) {
+        case MESSAGE_HANDSHAKE_INITIATION:
+            SKB_XOR1(buffer, HIDDEN_XOR);
+            xor_mac2(buffer, sizeof(struct message_handshake_initiation), HIDDEN_XOR);
+            skb_put_hidden_header(skb);
+            break;
+
+        case MESSAGE_HANDSHAKE_RESPONSE:
+            SKB_XOR2(buffer, HIDDEN_XOR);
+            xor_mac2(buffer, sizeof(struct message_handshake_response), HIDDEN_XOR);
+            skb_put_hidden_header(skb);
+            break;
+
+        case MESSAGE_HANDSHAKE_COOKIE:
+            SKB_XOR1(buffer, HIDDEN_XOR);
+            skb_put_hidden_header(skb);
+            break;
+    }
+}
+
 void skb_put_hidden_data(void *skb, void *buffer, size_t len)
 {
     int type = ((u8 *)buffer)[0];
     //int noise = type|(((u32)ktime_get_coarse_boottime_ns())<<3);
-    
-    //((__le32 *)buffer)[0]=cpu_to_le32(noise);
+    //((__le32 *)buffer)[0] = cpu_to_le32(noise);
     
     switch (type) {
         case MESSAGE_DATA:
             SKB_XOR3(buffer, HIDDEN_XOR);
-            if(len==32) skb_put_hidden_header(skb);
+            //if(len==32) skb_put_hidden_header(skb);
             break;
 
         case MESSAGE_HANDSHAKE_INITIATION:

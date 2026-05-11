@@ -33,6 +33,8 @@ struct message_hidden_header {
 
 size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg);
 
+void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg);
+
 void skb_put_hidden_data(void *skb, void *buffer, size_t len);
 
 #endif 
