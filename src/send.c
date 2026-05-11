@@ -193,7 +193,7 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
 	/* Expand head section to have room for our header and the network
 	 * stack's headers.
 	 */
-	hidden_len = hidden_data_header_len(skb->len + trailer_len);
+	hidden_len = hidden_data_header_len(skb->len + sizeof(*header) + trailer_len);
 	if (unlikely(skb_cow_head(skb, hidden_len + DATA_PACKET_HEAD_ROOM) < 0))
 		return false;
 
