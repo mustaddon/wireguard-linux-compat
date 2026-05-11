@@ -69,7 +69,7 @@ static void skb_put_hidden_header_len(void *skb, unsigned int hlen)
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
-    ptr[0] = (ptr[0]>>5) | hlen;
+    ptr[0] = (ptr[0]<<5) | hlen;
     if(ptr[0]<16) ptr[0] |= 128;
 }
 
