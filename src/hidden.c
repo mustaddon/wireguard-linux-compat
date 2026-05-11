@@ -9,7 +9,7 @@ const unsigned char hidsrc[32] = {
 
 #define HIDDEN_TYPE(val) ((val)&7)
 
-#define HIDDEN_HEADER_LEN_RAW(val) (((val)&7) + 1)
+#define HIDDEN_HEADER_LEN_RAW(val) (((val)&15) + 1)
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 
 #define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(hidsrc))[i]))
@@ -85,7 +85,7 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen)
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
-    ptr[0] = (ptr[0]<<6) | ((hlen-1)<<3);
+    ptr[0] = (ptr[0]<<7) | ((hlen-1)<<3);
     if(ptr[0]<16) ptr[0] |= 128;
 }
 
