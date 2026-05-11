@@ -69,7 +69,7 @@ static void skb_put_hidden_header_len(void *skb, unsigned int hlen)
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
-    ptr[0] = (ptr[0]<<6) | (hlen<<3);
+    ptr[0] = (ptr[0]<<6) | ((hlen-1)<<3);
     if(ptr[0]<16) ptr[0] |= 128;
 }
 
@@ -112,8 +112,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
 
 unsigned int hidden_data_header_len(unsigned int len)
 {
-    //return 0;
-    return len!=32 ? 0 : HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns());
+    return len != 32 ? 0 : HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns());
 }
 
 void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen)
