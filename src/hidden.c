@@ -69,7 +69,7 @@ static void skb_put_hidden_header_len(void *skb, unsigned int hlen)
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
-    ptr[0] = (ptr[0]<<5) | (hlen<<3);
+    ptr[0] = (ptr[0]<<6) | (hlen<<3);
     if(ptr[0]<16) ptr[0] |= 128;
 }
 
@@ -121,6 +121,7 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen)
     //int noise = type|(((u32)ktime_get_coarse_boottime_ns())<<3);
     //((__le32 *)buffer)[0] = cpu_to_le32(noise);
 
+    ((u8 *)buffer)[1] = 0xFF;
     ((u8 *)buffer)[2] = hlen;
     
     SKB_XOR3(buffer, HIDDEN_XOR);
