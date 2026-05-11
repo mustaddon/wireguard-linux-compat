@@ -80,8 +80,6 @@ static int prepare_skb_header(struct sk_buff *skb, struct wg_device *wg)
 	data_len -= sizeof(struct udphdr);
 	data_offset = (u8 *)udp + sizeof(struct udphdr) - skb->data;
 
-	if (unlikely(!pskb_may_pull(skb, data_offset + sizeof(struct message_hidden_header))))
-		return -EINVAL;
 	skb_pull(skb, data_offset);
 
 	/* calc hidden */

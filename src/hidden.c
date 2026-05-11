@@ -1,6 +1,17 @@
 #include "hidden.h"
+#include "messages.h"
+
+#define HIDDEN_TYPE(val) ((val)&7)
 
 #define HIDDEN_HEADER_LEN_RAW(val) (((val)&7) + 1)
+#define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
+
+#define	HIDDEN_XOR 0x8cb51d5e
+
+#define	SKB_XOR1(skb, xor) ((int *)(skb))[1]^=xor;
+#define	SKB_XOR2(skb, xor) ((int *)(skb))[1]^=xor; ((int *)(skb))[2]^=xor;
+#define	SKB_XOR3(skb, xor) ((int *)(skb))[1]^=xor; ((int *)(skb))[2]^=xor; ((int *)(skb))[3]^=xor;
+
 
 static void xor_mac2(void *skb, size_t len, int xor)
 {
@@ -65,24 +76,12 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
 }
 
 
-static void skb_put_hidden_header_len(void *skb, unsigned int hlen)
+static void skb_put_hidden_header(void *skb, unsigned int hlen)
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
     ptr[0] = (ptr[0]<<6) | ((hlen-1)<<3);
     if(ptr[0]<16) ptr[0] |= 128;
-}
-
-static void skb_put_hidden_header(void *skb)
-{
-    int hlen;
-    u8 *ptr;
-    u8 noise = ktime_get_coarse_boottime_ns()<<3;
-    if(noise<16) noise |= 128;
-    hlen = HIDDEN_HEADER_LEN(noise);
-    ptr = (u8 *)skb_push(skb, hlen);
-    ptr[0] = noise;
-    if(hlen>1) get_random_bytes(ptr+1, hlen-1);
 }
 
 void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
@@ -107,7 +106,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
             break;
     }
 
-    skb_put_hidden_header(skb);
+    skb_put_hidden_header(skb, HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns()));
 }
 
 unsigned int hidden_data_header_len(unsigned int len)
@@ -120,29 +119,8 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen)
     //int noise = type|(((u32)ktime_get_coarse_boottime_ns())<<3);
     //((__le32 *)buffer)[0] = cpu_to_le32(noise);
 
-    ((u8 *)buffer)[1] = 0xFF;
     ((u8 *)buffer)[2] = hlen;
     
     SKB_XOR3(buffer, HIDDEN_XOR);
-    if(hlen > 0) skb_put_hidden_header_len(skb, hlen);
+    if(hlen > 0) skb_put_hidden_header(skb, hlen);
 }
-
-
-
-
-__le32 hidden_type(enum message_type type) 
-{
-    __le32 val = ktime_get_coarse_boottime_ns();
-    //get_random_bytes(&val, sizeof(val));
-    ((u8 *)&val)[0] += type - HIDDEN_TYPE(val);
-    return val;
-}
-
-void hidden_header_init(struct hidden_header *header, enum message_type type)
-{
-    header->val = 0;
-    get_random_bytes(&header->val, 1);
-    if(header->val < 16) header->val |= 0x10;
-    header->len = HIDDEN_HEADER_LEN(header->val);
-}
-
