@@ -44,7 +44,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
         skb_pull(skb, hlen);
     }
 
-    xor = SKB_XOR(skb, wg);
+    xor = SKB_XOR(skb->data, wg);
 
     switch (type) {
         case MESSAGE_DATA:
