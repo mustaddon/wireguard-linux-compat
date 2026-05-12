@@ -1,7 +1,7 @@
 #include "hidden.h"
 #include "messages.h"
 
-const unsigned char hidsrc[32] = { 
+const unsigned char mask[32] = { 
     0x88, 0xab, 0xa4, 0x0d, 0xb7, 0x69, 0x42, 0x2b, 
     0xd0, 0x79, 0x2d, 0x65, 0xce, 0x69, 0x1f, 0x82, 
     0x98, 0x31, 0x89, 0xab, 0xd6, 0x5c, 0x85, 0x90, 
@@ -12,7 +12,7 @@ const unsigned char hidsrc[32] = {
 #define HIDDEN_HEADER_LEN_RAW(val) (((val)&15) + 1)
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 
-#define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(hidsrc))[i]))
+#define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(mask))[i]))
 #define	SKB_XOR(skb, wg, i) ((int *)(skb))[i]^=GET_XOR(skb, wg, i)
 #define	XOR_HS_INIT(skb, wg) SKB_XOR(skb, wg, 1)
 #define	XOR_HS_RESP(skb, wg) SKB_XOR(skb, wg, 1);SKB_XOR(skb, wg, 2)
@@ -22,10 +22,10 @@ const unsigned char hidsrc[32] = {
 static void xor_mac2(void *skb, size_t len, struct wg_device *wg)
 {
     int *ptr = (int *)((u8 *)skb + len - 16);
-    ptr[0] ^= GET_XOR(skb, wg, 0);
-    ptr[1] ^= GET_XOR(skb, wg, 1);
-    ptr[2] ^= GET_XOR(skb, wg, 2);
-    ptr[3] ^= GET_XOR(skb, wg, 3);
+    ptr[0] ^= GET_XOR(skb, wg, 4);
+    ptr[1] ^= GET_XOR(skb, wg, 5);
+    ptr[2] ^= GET_XOR(skb, wg, 6);
+    ptr[3] ^= GET_XOR(skb, wg, 7);
 }
 
 size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg) 
@@ -38,7 +38,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
 
     type = HIDDEN_TYPE(((u8 *)skb->data)[0]);
 
-    if(type == 0)
+    if(type == 7)
     {
         hlen = HIDDEN_HEADER_LEN(((u8 *)skb->data)[0]);
         type = HIDDEN_TYPE(((u8 *)skb->data)[hlen]);
@@ -85,8 +85,7 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen)
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
-    ptr[0] = (ptr[0]<<7) | ((hlen-1)<<3);
-    if(ptr[0]<16) ptr[0] |= 128;
+    ptr[0] = (ptr[0]<<7) | ((hlen-1)<<3) | 7;
 }
 
 static void skb_add_type_noise(void *buffer)
