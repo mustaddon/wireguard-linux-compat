@@ -97,7 +97,7 @@ static void skb_add_type_noise(void *buffer)
 {
     u8 type = ((u8 *)buffer)[0];
     ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
-    ((u8 *)buffer)[3] = (((u8 *)buffer)[0]<<3) | type;
+    ((u8 *)buffer)[3] = (((u8 *)buffer)[3]<<3) | type;
 }
 
 void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)

@@ -1,26 +1,3 @@
-diff -NauBw ./cookie.c ./cookie.c
---- ./cookie.c	2026-05-06 16:07:16.822033015 +0200
-+++ ./cookie.c	2026-05-06 16:36:06.538875110 +0200
-@@ -6,1 +6,2 @@
--#include "cookie.h"
-+#include "hidden.h"
-+#include "cookie.h"
-@@ -188,1 +188,1 @@
--	dst->header.type = cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE);
-+	dst->header.type = hidden_type(MESSAGE_HANDSHAKE_COOKIE);
-diff -NauBw ./noise.c ./noise.c
---- ./noise.c	2026-05-06 16:07:16.822033015 +0200
-+++ ./noise.c	2026-05-06 16:37:47.648111030 +0200
-@@ -6,1 +6,2 @@
--#include "noise.h"
-+#include "hidden.h"
-+#include "noise.h"
-@@ -513,1 +513,1 @@
--	dst->header.type = cpu_to_le32(MESSAGE_HANDSHAKE_INITIATION);
-+	dst->header.type = hidden_type(MESSAGE_HANDSHAKE_INITIATION);
-@@ -662,1 +662,1 @@
--	dst->header.type = cpu_to_le32(MESSAGE_HANDSHAKE_RESPONSE);
-+	dst->header.type = hidden_type(MESSAGE_HANDSHAKE_RESPONSE);
 diff -NauBw ./receive.c ./receive.c
 --- ./receive.c	2026-05-06 16:07:16.822033015 +0200
 +++ ./receive.c	2026-05-06 16:41:17.534672545 +0200
@@ -28,65 +5,30 @@ diff -NauBw ./receive.c ./receive.c
 -#include "queueing.h"
 +#include "hidden.h"
 +#include "queueing.h"
-@@ -39,1 +39,1 @@
--	if (SKB_TYPE_LE32(skb) == cpu_to_le32(MESSAGE_DATA) &&
-+	if (SKB_HIDDEN_TYPE(skb) == MESSAGE_DATA &&
-@@ -42,1 +42,1 @@
--	if (SKB_TYPE_LE32(skb) == cpu_to_le32(MESSAGE_HANDSHAKE_INITIATION) &&
-+	if (SKB_HIDDEN_TYPE(skb) == MESSAGE_HANDSHAKE_INITIATION &&
-@@ -45,1 +45,1 @@
--	if (SKB_TYPE_LE32(skb) == cpu_to_le32(MESSAGE_HANDSHAKE_RESPONSE) &&
-+	if (SKB_HIDDEN_TYPE(skb) == MESSAGE_HANDSHAKE_RESPONSE &&
-@@ -48,1 +48,1 @@
--	if (SKB_TYPE_LE32(skb) == cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE) &&
-+	if (SKB_HIDDEN_TYPE(skb) == MESSAGE_HANDSHAKE_COOKIE &&
-@@ -79,10 +79,20 @@
+@@ -79,10 +79,19 @@
  	data_len -= sizeof(struct udphdr);
  	data_offset = (u8 *)udp + sizeof(struct udphdr) - skb->data;
 -	if (unlikely(!pskb_may_pull(skb,
 -				data_offset + sizeof(struct message_header)) ||
 -		     pskb_trim(skb, data_len + data_offset) < 0))
-+
-+	if (unlikely(!pskb_may_pull(skb, data_offset + sizeof(struct message_hidden_header))))
- 		return -EINVAL;
+-		return -EINVAL;
  	skb_pull(skb, data_offset);
 +
 +	/* calc hidden */
-+	header_len = SKB_HIDDEN_HEADER_LEN(skb);
-+	data_len -= header_len;
-+	data_offset += header_len;
-+	if (unlikely(!pskb_may_pull(skb,
-+				header_len + sizeof(struct message_header)) ||
-+		     pskb_trim(skb, data_len + header_len) < 0))
-+		return -EINVAL;
-+	skb_pull(skb, header_len);
++	header_len = prepare_skb_hidden(skb, wg);
++	if(header_len > 0)
++	{
++		if(header_len == ERROR_HIDDEN_LEN)
++			return -EINVAL;
++		data_len -= header_len;
++		data_offset += header_len;
++	}
 +	
++	if (unlikely(pskb_trim(skb, data_len) < 0))
++		return -EINVAL;
  	if (unlikely(skb->len != data_len))
  		/* Final len does not agree with calculated len */
  		return -EINVAL;
-@@ -111,1 +111,1 @@
--	if (SKB_TYPE_LE32(skb) == cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE)) {
-+	if (SKB_HIDDEN_TYPE(skb) == MESSAGE_HANDSHAKE_COOKIE) {
-@@ -141,2 +141,2 @@
--	switch (SKB_TYPE_LE32(skb)) {
--	case cpu_to_le32(MESSAGE_HANDSHAKE_INITIATION): {
-+	switch (SKB_HIDDEN_TYPE(skb)) {
-+	case MESSAGE_HANDSHAKE_INITIATION: {
-@@ -164,1 +164,1 @@
--	case cpu_to_le32(MESSAGE_HANDSHAKE_RESPONSE): {
-+	case MESSAGE_HANDSHAKE_RESPONSE: {
-@@ -563,4 +563,4 @@
--	switch (SKB_TYPE_LE32(skb)) {
--	case cpu_to_le32(MESSAGE_HANDSHAKE_INITIATION):
--	case cpu_to_le32(MESSAGE_HANDSHAKE_RESPONSE):
--	case cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE): {
-+	switch (SKB_HIDDEN_TYPE(skb)) {
-+	case MESSAGE_HANDSHAKE_INITIATION:
-+	case MESSAGE_HANDSHAKE_RESPONSE:
-+	case MESSAGE_HANDSHAKE_COOKIE: {
-@@ -585,1 +585,1 @@
--	case cpu_to_le32(MESSAGE_DATA):
-+	case MESSAGE_DATA:
 diff -NauBw ./send.c ./send.c
 --- ./send.c	2026-05-06 16:07:16.822033015 +0200
 +++ ./send.c	2026-05-06 17:08:24.810366991 +0200
@@ -94,29 +36,25 @@ diff -NauBw ./send.c ./send.c
 -#include "queueing.h"
 +#include "hidden.h"
 +#include "queueing.h"
-@@ -169,4 +169,5 @@
- 	struct message_data *header;
- 	struct sk_buff *trailer;
-+	struct hidden_header hheader;
-	int num_frags;
- 
+@@ -166,3 +166,3 @@
+ {
+-	unsigned int padding_len, plaintext_len, trailer_len;
++	unsigned int padding_len, plaintext_len, trailer_len, hidden_len;
+ 	struct scatterlist sg[MAX_SKB_FRAGS + 8];
 @@ -191,2 +191,3 @@
 -	if (unlikely(skb_cow_head(skb, DATA_PACKET_HEAD_ROOM) < 0))
-+	hidden_header_init(&hheader, MESSAGE_DATA);
-+	if (unlikely(skb_cow_head(skb, hheader.len + DATA_PACKET_HEAD_ROOM) < 0))
++	hidden_len = hidden_data_header_len(skb->len + sizeof(*header) + trailer_len);
++	if (unlikely(skb_cow_head(skb, hidden_len + DATA_PACKET_HEAD_ROOM) < 0))
  		return false;
-@@ -204,8 +204,9 @@
--	header->header.type = cpu_to_le32(MESSAGE_DATA);
-+	header->header.type = hidden_type(MESSAGE_DATA);
- 	header->key_idx = keypair->remote_index;
+@@ -206,2 +206,3 @@
  	header->counter = cpu_to_le64(PACKET_CB(skb)->nonce);
-+	skb_put_hidden_header(skb, &hheader);
++	skb_put_hidden_data(skb, header, hidden_len, keypair->entry.peer->device);
  	pskb_put(skb, trailer, trailer_len);
- 
- 	/* Now we can encrypt the scattergather segments */
+@@ -210,3 +210,3 @@
  	sg_init_table(sg, num_frags);
 -	if (skb_to_sgvec(skb, sg, sizeof(struct message_data),
-+	if (skb_to_sgvec(skb, sg, hheader.len + sizeof(struct message_data),
++	if (skb_to_sgvec(skb, sg, hidden_len + sizeof(struct message_data),
+ 			 noise_encrypted_len(plaintext_len)) <= 0)
 diff -NauBw ./socket.c ./socket.c
 --- ./socket.c	2026-05-06 16:07:16.822033015 +0200
 +++ ./socket.c	2026-05-06 16:44:55.541329023 +0200
@@ -124,41 +62,18 @@ diff -NauBw ./socket.c ./socket.c
 -#include "device.h"
 +#include "hidden.h"
 +#include "device.h"
-@@ -203,10 +203,15 @@
--	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
-+	struct hidden_header hheader;
-+	struct sk_buff *skb;
-+
-+	hidden_header_init(&hheader, MSG_HIDDEN_TYPE(buffer));
-+	skb = alloc_skb(hheader.len + len + SKB_HEADER_LEN, GFP_ATOMIC);
- 
- 	if (unlikely(!skb))
- 		return -ENOMEM;
- 
+@@ -208,4 +208,5 @@
  	skb_reserve(skb, SKB_HEADER_LEN);
  	skb_set_inner_network_header(skb, 0);
-+	skb_put_hidden_header(skb, &hheader);
++	skb_put_hidden_handshake(skb, buffer, peer->device);
  	skb_put_data(skb, buffer, len);
  	return wg_socket_send_skb_to_peer(peer, skb, ds);
- }
-@@ -218,6 +223,7 @@
- 	int ret = 0;
- 	struct sk_buff *skb;
- 	struct endpoint endpoint;
-+	struct hidden_header hheader;
- 
- 	if (unlikely(!in_skb))
- 		return -EINVAL;
-@@ -228,6 +228,8 @@
--	skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
-+	hidden_header_init(&hheader, MSG_HIDDEN_TYPE(buffer));
-+	skb = alloc_skb(hheader.len + len + SKB_HEADER_LEN, GFP_ATOMIC);
- 	if (unlikely(!skb))
- 		return -ENOMEM;
+@@ -231,4 +231,5 @@
  	skb_reserve(skb, SKB_HEADER_LEN);
  	skb_set_inner_network_header(skb, 0);
-+	skb_put_hidden_header(skb, &hheader);
++	skb_put_hidden_handshake(skb, buffer, wg);
  	skb_put_data(skb, buffer, len);
+ 
 diff -NauBw ./main.c ./main.c
 --- ./main.c	2026-05-06 16:07:16.822033015 +0200
 +++ ./main.c	2026-05-06 16:44:55.541329023 +0200

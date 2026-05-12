@@ -27,6 +27,7 @@ trap "cd $START_DIR" EXIT SIGINT SIGTERM
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 TMP_DIR="$SCRIPT_DIR/temp-wg"
+BRANCH="test2"
 
 if [ -d "$TMP_DIR" ]; then
     rm -r "$TMP_DIR"
@@ -35,7 +36,7 @@ fi
 function compileCompat() {
     TMP_ZIP="$SCRIPT_DIR/temp-wg.zip"
 
-    wget -O "$TMP_ZIP" "https://github.com/mustaddon/wireguard-linux-compat/archive/refs/heads/test.zip?t=$(date +%s)"
+    wget -O "$TMP_ZIP" "https://github.com/mustaddon/wireguard-linux-compat/archive/refs/heads/$BRANCH.zip?t=$(date +%s)"
     unzip "$TMP_ZIP" -d "$TMP_DIR"
 
     CODE_DIR=$(find "$TMP_DIR" -type d -name "src")
@@ -67,7 +68,7 @@ function compile() {
 
     PATCH_FILE="$TMP_DIR/hwg.patch"
 
-    curl -o "$PATCH_FILE" "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/test/kernel-tree-scripts/wg.patch?t=$(date +%s)"
+    curl -o "$PATCH_FILE" "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/$BRANCH/kernel-tree-scripts/wg.patch?t=$(date +%s)"
 
     if patch -Np1 -f --dry-run < "$PATCH_FILE" > /dev/null 2>&1; then
         echo "No conflicts detected. Applying patch..."
@@ -79,7 +80,7 @@ function compile() {
         exit 1
     fi
 
-    curl -O "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/test/src/{hidden.h,hidden.c,version.h}"
+    curl -O "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/$BRANCH/src/{hidden.h,hidden.c,version.h}"
 
     make
 }
