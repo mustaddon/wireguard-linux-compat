@@ -42,7 +42,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     XOR_HEAD(skb->data, wg);
     type = SKB_HIDDEN_TYPE(skb->data, 0);
 
-    if(type == 7)
+    if(type == 0)
     {
         hlen = SKB_HIDDEN_HEADER_LEN(skb->data);
         type = SKB_HIDDEN_TYPE(skb->data, hlen);
@@ -89,7 +89,7 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
-    ptr[3] = (ptr[3]<<6) | ((hlen-4)<<3) | 7;
+    ptr[3] = (ptr[3]<<6) | ((hlen-4)<<3);
     XOR_HEAD(ptr, wg);
 }
 
