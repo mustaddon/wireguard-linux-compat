@@ -8,9 +8,11 @@ const unsigned char mask[32] = {
     0x8b, 0x90, 0x52, 0x33, 0x17, 0xff, 0x18, 0x57 };
 
 #define HIDDEN_TYPE(val) ((val)&7)
+#define SKB_HIDDEN_TYPE(skb, offset) HIDDEN_TYPE(((u8 *)(skb))[3+offset])
 
 #define HIDDEN_HEADER_LEN_RAW(val) (((val)&7) + 4)
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
+#define SKB_HIDDEN_HEADER_LEN(skb) HIDDEN_HEADER_LEN(((u8 *)(skb))[3])
 
 #define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(mask))[i]))
 #define	SKB_XOR(skb, wg, i) ((int *)(skb))[i]^=GET_XOR(skb, wg, i)
@@ -38,12 +40,12 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
         return ERROR_HIDDEN_LEN;
 
     XOR_HEAD(skb->data, wg);
-    type = HIDDEN_TYPE(((u8 *)skb->data)[0]);
+    type = SKB_HIDDEN_TYPE(skb->data, 0);
 
     if(type == 7)
     {
-        hlen = HIDDEN_HEADER_LEN(((u8 *)skb->data)[0]);
-        type = HIDDEN_TYPE(((u8 *)skb->data)[hlen]);
+        hlen = SKB_HIDDEN_HEADER_LEN(skb->data);
+        type = SKB_HIDDEN_TYPE(skb->data, hlen);
         skb_pull(skb, hlen);
     }
 
@@ -87,14 +89,14 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
-    ptr[0] = (ptr[0]<<6) | ((hlen-4)<<3) | 7;
+    ptr[3] = (ptr[3]<<6) | ((hlen-4)<<3) | 7;
     XOR_HEAD(ptr, wg);
 }
 
 static void skb_add_type_noise(void *buffer)
 {
     int noise = (((int)ktime_get_coarse_boottime_ns())<<3) | (((u8 *)buffer)[0]);
-    ((__le32 *)buffer)[0] = cpu_to_le32(noise);
+    ((int *)buffer)[0] = cpu_to_be32(noise);
 }
 
 void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
