@@ -9,7 +9,7 @@ const unsigned char mask[32] = {
 
 #define HIDDEN_TYPE(val) ((val)&7)
 
-#define HIDDEN_HEADER_LEN_RAW(val) (((val)&15) + 1)
+#define HIDDEN_HEADER_LEN_RAW(val) (((val)&15) + 4)
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 
 #define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(mask))[i]))
@@ -33,7 +33,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     int type;
     size_t hlen = 0;
 
-    if (unlikely(!pskb_may_pull(skb, 9)))
+    if (unlikely(!pskb_may_pull(skb, 12)))
         return ERROR_HIDDEN_LEN;
 
     type = HIDDEN_TYPE(((u8 *)skb->data)[0]);
@@ -85,7 +85,7 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen)
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
-    ptr[0] = (ptr[0]<<7) | ((hlen-1)<<3) | 7;
+    ptr[0] = (ptr[0]<<7) | ((hlen-4)<<3) | 7;
 }
 
 static void skb_add_type_noise(void *buffer)
