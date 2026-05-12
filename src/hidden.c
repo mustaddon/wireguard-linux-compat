@@ -14,6 +14,7 @@ const unsigned char mask[32] = {
 
 #define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(mask))[i]))
 #define	SKB_XOR(skb, wg, i) ((int *)(skb))[i]^=GET_XOR(skb, wg, i)
+#define	XOR_HEAD(skb, wg) ((int *)(skb))[0]^=(((int *)(mask))[0])
 #define	XOR_HS_INIT(skb, wg) SKB_XOR(skb, wg, 1)
 #define	XOR_HS_RESP(skb, wg) SKB_XOR(skb, wg, 1);SKB_XOR(skb, wg, 2)
 #define	XOR_HS_COOK(skb, wg) SKB_XOR(skb, wg, 1)
@@ -36,7 +37,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     if (unlikely(!pskb_may_pull(skb, 12)))
         return ERROR_HIDDEN_LEN;
 
-    SKB_XOR(skb->data, wg, 0);
+    XOR_HEAD(skb->data, wg);
     type = HIDDEN_TYPE(((u8 *)skb->data)[0]);
 
     if(type == 7)
@@ -87,7 +88,7 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
     ptr[0] = (ptr[0]<<7) | ((hlen-4)<<3) | 7;
-    SKB_XOR(ptr, wg, 0);
+    XOR_HEAD(ptr, wg);
 }
 
 static void skb_add_type_noise(void *buffer)
@@ -136,6 +137,6 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
     }
     else
     {
-        SKB_XOR(buffer, wg, 0);
+        XOR_HEAD(buffer, wg);
     }
 }
