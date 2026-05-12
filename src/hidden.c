@@ -82,7 +82,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     return hlen;
 }
 
-static void skb_put_hidden_header(void *skb, unsigned int hlen)
+static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device *wg)
 {
     u8 *ptr = (u8 *)skb_push(skb, hlen);
     get_random_bytes(ptr, hlen);
@@ -117,7 +117,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
             break;
     }
 
-    skb_put_hidden_header(skb, HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns()));
+    skb_put_hidden_header(skb, HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns()), wg);
 }
 
 unsigned int hidden_data_header_len(unsigned int len)
@@ -132,7 +132,7 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
     
     if(hlen > 0) 
     {
-        skb_put_hidden_header(skb, hlen);
+        skb_put_hidden_header(skb, hlen, wg);
     }
     else
     {
