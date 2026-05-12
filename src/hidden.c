@@ -95,8 +95,9 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device
 
 static void skb_add_type_noise(void *buffer)
 {
-    int noise = (((int)ktime_get_coarse_boottime_ns())<<3) | (((u8 *)buffer)[0]);
-    ((int *)buffer)[0] = cpu_to_be32(noise);
+    u8 type = ((u8 *)buffer)[0];
+    ((int *)buffer)[0] = ktime_get_coarse_boottime_ns();
+    ((u8 *)buffer)[3] = (((u8 *)buffer)[0]<<3) | type;
 }
 
 void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
