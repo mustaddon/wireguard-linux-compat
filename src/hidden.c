@@ -14,9 +14,9 @@ const unsigned char MASK[32] = {
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 #define SKB_HIDDEN_HEADER_LEN(skb) HIDDEN_HEADER_LEN(((u8 *)(skb))[3])
 
-#define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(MASK))[i]))
-#define	SKB_XOR(skb, wg, i) ((int *)(skb))[i]^=GET_XOR(skb, wg, i)
-#define	XOR_HEAD(skb, wg) ((int *)(skb))[0]^=(((int *)(MASK))[0])
+#define	GET_XOR(skb, wg, i) ((((u32 *)(skb))[0])^(((u32 *)(MASK))[i]))
+#define	SKB_XOR(skb, wg, i) ((u32 *)(skb))[i]^=GET_XOR(skb, wg, i)
+#define	XOR_HEAD(skb, wg) ((u32 *)(skb))[0]^=(((u32 *)(MASK))[0])
 #define	XOR_HS_INIT(skb, wg) SKB_XOR(skb, wg, 1)
 #define	XOR_HS_RESP(skb, wg) SKB_XOR(skb, wg, 1);SKB_XOR(skb, wg, 2)
 #define	XOR_HS_COOK(skb, wg) SKB_XOR(skb, wg, 1)
@@ -24,7 +24,7 @@ const unsigned char MASK[32] = {
 
 static void xor_mac2(void *skb, size_t len, struct wg_device *wg)
 {
-    int *ptr = (int *)((u8 *)skb + len - 16);
+    u32 *ptr = (u32 *)((u8 *)skb + len - 16);
     ptr[0] ^= GET_XOR(skb, wg, 4);
     ptr[1] ^= GET_XOR(skb, wg, 5);
     ptr[2] ^= GET_XOR(skb, wg, 6);
