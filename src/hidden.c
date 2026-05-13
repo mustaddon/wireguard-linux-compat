@@ -45,9 +45,9 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     if(type == 0)
     {
         hlen = SKB_HIDDEN_HEADER_LEN(skb->data);
-        XOR_HEAD((u8 *)skb->data + hlen, wg);
-        type = SKB_HIDDEN_TYPE(skb->data, hlen);
         skb_pull(skb, hlen);
+        XOR_HEAD(skb->data, wg);
+        type = SKB_HIDDEN_TYPE(skb->data, 0);
     }
 
     switch (type) {
