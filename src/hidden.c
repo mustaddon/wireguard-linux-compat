@@ -90,7 +90,6 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device
 {
     u8 *buffer = (u8 *)skb_push(skb, hlen);
     get_random_bytes(buffer, hlen);
-    ((u8 *)buffer)[3] = 
     buffer[3] = (buffer[3]<<6) | ((hlen-4)<<3);
     //XOR_HEAD(buffer, wg);
 }
