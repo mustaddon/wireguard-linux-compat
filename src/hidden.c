@@ -1,22 +1,22 @@
 #include "hidden.h"
 #include "messages.h"
 
-const unsigned char mask[32] = { 
+const unsigned char MASK[32] = { 
     0x81, 0xab, 0xa4, 0x0d, 0xb7, 0x73, 0x42, 0x2b, 
     0xd0, 0x79, 0x2d, 0x65, 0xce, 0x69, 0x1f, 0x82, 
     0x98, 0x31, 0x89, 0xaf, 0xd6, 0x5c, 0x85, 0x93, 
     0x8b, 0x90, 0x52, 0x33, 0x17, 0xff, 0x18, 0x57 };
 
 #define HIDDEN_TYPE(val) ((val)&7)
-#define SKB_HIDDEN_TYPE(skb, offset) HIDDEN_TYPE(((u8 *)(skb))[3+offset])
+#define SKB_HIDDEN_TYPE(skb) HIDDEN_TYPE(((u8 *)(skb))[3])
 
 #define HIDDEN_HEADER_LEN_RAW(val) (11)// (((val)&7) + 4)
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 #define SKB_HIDDEN_HEADER_LEN(skb) HIDDEN_HEADER_LEN(((u8 *)(skb))[3])
 
-#define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(mask))[i]))
+#define	GET_XOR(skb, wg, i) ((((int *)(skb))[0])^(((int *)(MASK))[i]))
 #define	SKB_XOR(skb, wg, i) ((int *)(skb))[i]^=GET_XOR(skb, wg, i)
-#define	XOR_HEAD(skb, wg) ((int *)(skb))[0]^=(((int *)(mask))[0])
+#define	XOR_HEAD(skb, wg) ((int *)(skb))[0]^=(((int *)(MASK))[0])
 #define	XOR_HS_INIT(skb, wg) SKB_XOR(skb, wg, 1)
 #define	XOR_HS_RESP(skb, wg) SKB_XOR(skb, wg, 1);SKB_XOR(skb, wg, 2)
 #define	XOR_HS_COOK(skb, wg) SKB_XOR(skb, wg, 1)
@@ -40,14 +40,14 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
         return ERROR_HIDDEN_LEN;
 
     XOR_HEAD(skb->data, wg);
-    type = SKB_HIDDEN_TYPE(skb->data, 0);
+    type = SKB_HIDDEN_TYPE(skb->data);
 
     if(type == 0)
     {
         hlen = SKB_HIDDEN_HEADER_LEN(skb->data);
         skb_pull(skb, hlen);
         XOR_HEAD(skb->data, wg);
-        type = SKB_HIDDEN_TYPE(skb->data, 0);
+        type = SKB_HIDDEN_TYPE(skb->data);
     }
 
     switch (type) {
