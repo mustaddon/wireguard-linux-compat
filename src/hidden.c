@@ -10,7 +10,7 @@ const unsigned char mask[32] = {
 #define HIDDEN_TYPE(val) ((val)&7)
 #define SKB_HIDDEN_TYPE(skb, offset) HIDDEN_TYPE(((u8 *)(skb))[3+offset])
 
-#define HIDDEN_HEADER_LEN_RAW(val) (((val)&7) + 4)
+#define HIDDEN_HEADER_LEN_RAW(val) (((val)&1) + 4)
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 #define SKB_HIDDEN_HEADER_LEN(skb) HIDDEN_HEADER_LEN(((u8 *)(skb))[3])
 
@@ -90,6 +90,7 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device
 {
     u8 *buffer = (u8 *)skb_push(skb, hlen);
     get_random_bytes(buffer, hlen);
+    ((u8 *)buffer)[3] = 
     buffer[3] = (buffer[3]<<6) | ((hlen-4)<<3);
     //XOR_HEAD(buffer, wg);
 }
