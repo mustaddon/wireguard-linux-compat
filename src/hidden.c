@@ -45,6 +45,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     if(type == 0)
     {
         hlen = SKB_HIDDEN_HEADER_LEN(skb->data);
+        XOR_HEAD((u8 *)skb->data + hlen, wg);
         type = SKB_HIDDEN_TYPE(skb->data, hlen);
         skb_pull(skb, hlen);
     }
@@ -121,6 +122,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
             break;
     }
 
+    XOR_HEAD(buffer, wg);
     skb_put_hidden_header(skb, HIDDEN_HEADER_LEN_RAW((unsigned int)ktime_get_coarse_boottime_ns()), wg);
 }
 
@@ -133,6 +135,7 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
 {
     skb_add_type_noise(buffer);
     XOR_DATA(buffer, wg);
+    XOR_HEAD(buffer, wg);
     
     if(hlen > 0) 
     {
@@ -140,6 +143,6 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
     }
     else
     {
-        XOR_HEAD(buffer, wg);
+        //XOR_HEAD(buffer, wg);
     }
 }
