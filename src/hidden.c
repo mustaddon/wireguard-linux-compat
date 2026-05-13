@@ -89,7 +89,8 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
 static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device *wg)
 {
     u8 *buffer = (u8 *)skb_push(skb, hlen);
-    get_random_bytes(buffer, hlen);
+    ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
+    //get_random_bytes(buffer, hlen);
     buffer[3] = (buffer[3]<<6) | ((hlen-4)<<3);
     XOR_HEAD(buffer, wg);
 }
