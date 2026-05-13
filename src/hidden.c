@@ -10,7 +10,7 @@ const unsigned char MASK[32] = {
 #define HIDDEN_TYPE(val) ((val)&7)
 #define SKB_HIDDEN_TYPE(skb) HIDDEN_TYPE(((u8 *)(skb))[3])
 
-#define HIDDEN_HEADER_LEN_RAW(val) (11)// (((val)&7) + 4)
+#define HIDDEN_HEADER_LEN_RAW(val) (((val)&7) + 4)
 #define HIDDEN_HEADER_LEN(val) HIDDEN_HEADER_LEN_RAW((val)>>3)
 #define SKB_HIDDEN_HEADER_LEN(skb) HIDDEN_HEADER_LEN(((u8 *)(skb))[3])
 
