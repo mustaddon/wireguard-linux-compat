@@ -17,8 +17,8 @@ const unsigned char MASK[32] = {
 #define	GET_XOR(skb, wg, i) ((((u32 *)(skb))[0])^(((u32 *)(MASK))[i]))
 #define	SKB_XOR(skb, wg, i) ((u32 *)(skb))[i]^=GET_XOR(skb, wg, i)
 #define	XOR_HEAD(skb, wg) ((u32 *)(skb))[0]^=(((u32 *)(MASK))[0])
-#define	XOR_HS_INIT(skb, wg) SKB_XOR(skb, wg, 1)
-#define	XOR_HS_RESP(skb, wg) SKB_XOR(skb, wg, 1);SKB_XOR(skb, wg, 2)
+#define	XOR_HS_INIT(skb, wg) SKB_XOR(skb, wg, 1);xor_mac2(skb, sizeof(struct message_handshake_initiation), wg)
+#define	XOR_HS_RESP(skb, wg) SKB_XOR(skb, wg, 1);SKB_XOR(skb, wg, 2);xor_mac2(skb, sizeof(struct message_handshake_response), wg)
 #define	XOR_HS_COOK(skb, wg) SKB_XOR(skb, wg, 1)
 #define	XOR_DATA(skb, wg) SKB_XOR(skb, wg, 1);SKB_XOR(skb, wg, 2);SKB_XOR(skb, wg, 3)
 
@@ -61,14 +61,12 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
             if (unlikely(!pskb_may_pull(skb, sizeof(struct message_handshake_initiation))))
                 return ERROR_HIDDEN_LEN;
             XOR_HS_INIT(skb->data, wg);
-            xor_mac2(skb->data, sizeof(struct message_handshake_initiation), wg);
             break;
 
         case MESSAGE_HANDSHAKE_RESPONSE:
             if (unlikely(!pskb_may_pull(skb, sizeof(struct message_handshake_response))))
                 return ERROR_HIDDEN_LEN;
             XOR_HS_RESP(skb->data, wg);
-            xor_mac2(skb->data, sizeof(struct message_handshake_response), wg);
             break;
 
         case MESSAGE_HANDSHAKE_COOKIE:
@@ -109,12 +107,10 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
     switch (type) {
         case MESSAGE_HANDSHAKE_INITIATION:
             XOR_HS_INIT(buffer, wg);
-            xor_mac2(buffer, sizeof(struct message_handshake_initiation), wg);
             break;
 
         case MESSAGE_HANDSHAKE_RESPONSE:
             XOR_HS_RESP(buffer, wg);
-            xor_mac2(buffer, sizeof(struct message_handshake_response), wg);
             break;
 
         case MESSAGE_HANDSHAKE_COOKIE:
@@ -140,9 +136,5 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
     if(hlen > 0) 
     {
         skb_put_hidden_header(skb, hlen, wg);
-    }
-    else
-    {
-        //XOR_HEAD(buffer, wg);
     }
 }
