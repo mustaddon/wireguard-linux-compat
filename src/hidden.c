@@ -70,11 +70,11 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
         return ERROR_HIDDEN_LEN;
 
     head_tmp = XOR_HEAD_CALC(skb->data, wg);
-    type = HIDDEN_TYPE(le32_to_cpu(head_tmp));
+    type = SKB_HIDDEN_TYPE(&head_tmp);
 
     if(type == 0)
     {
-        hlen = SKB_HIDDEN_HEADER_LEN(skb->data);
+        hlen = SKB_HIDDEN_HEADER_LEN(&head_tmp);
         skb_pull(skb, hlen);
         XOR_HEAD(skb->data, wg);
         type = SKB_HIDDEN_TYPE(skb->data);
