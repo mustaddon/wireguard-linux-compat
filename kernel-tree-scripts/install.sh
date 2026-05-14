@@ -27,7 +27,7 @@ trap "cd $START_DIR" EXIT SIGINT SIGTERM
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 TMP_DIR="$SCRIPT_DIR/temp-wg"
-BRANCH="test3"
+BRANCH="test2"
 
 if [ -d "$TMP_DIR" ]; then
     rm -r "$TMP_DIR"
