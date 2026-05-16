@@ -166,7 +166,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
 {
     size_t data_len;
     int type = ((u8 *)buffer)[0];
-    unsigned int hlen = HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns());
+    unsigned int hlen = 0;// HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns());
     skb_add_type_noise(buffer);
     
     switch (type) {
