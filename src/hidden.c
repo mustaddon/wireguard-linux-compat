@@ -1,7 +1,7 @@
 #include "hidden.h"
 #include "messages.h"
 
-const unsigned char MASK[32] = { 
+static const unsigned char MASK[32] = { 
     0x81, 0xab, 0xa4, 0x0d, 0xb7, 0x73, 0x42, 0x2b, 
     0xd0, 0x79, 0x2d, 0x65, 0xce, 0x69, 0x1f, 0x82, 
     0x98, 0x31, 0x89, 0xaf, 0xd6, 0x5c, 0x85, 0x93, 
@@ -59,7 +59,6 @@ static void xor_data(void *skb, struct wg_device *wg)
     ptr[3] ^= ptr[0]^mask[3];
 }
 
-
 size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg) 
 {
     int type;
@@ -68,6 +67,10 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
 
     if (unlikely(!pskb_may_pull(skb, 32)))
         return ERROR_HIDDEN_LEN;
+
+    head_tmp = le32_to_cpu(((u32 *)(skb->data))[0]);
+    if (head_tmp == 0xc0 || head_tmp == 0xd0)
+        skb_pull(skb, sizeof(struct QUIC_message_handshake));
 
     head_tmp = XOR_HEAD_CALC(skb->data, wg);
     type = SKB_HIDDEN_TYPE(&head_tmp);
@@ -118,6 +121,29 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     return hlen;
 }
 
+static void skb_put_quic_header(void *skb, size_t data_len, int type)
+{
+    struct QUIC_message_handshake *quic = (struct QUIC_message_handshake *)skb_push(skb, sizeof(struct QUIC_message_handshake));
+    quic->version = cpu_to_be32(1);
+	quic->token_len = 0;
+	quic->data_len = cpu_to_be16(0x4000 | data_len);
+
+    if (type == MESSAGE_HANDSHAKE_INITIATION)
+    {
+        quic->flags = 0xc0;
+        quic->CID.initiation.DCID_len = sizeof(quic->CID.initiation.DCID);
+        quic->CID.initiation.DCID = ktime_get_coarse_boottime_ns();
+        quic->CID.initiation.SCID_len = 0;
+    }
+    else
+    {
+        quic->flags = 0xd0;
+        quic->CID.response.DCID_len = 0;
+        quic->CID.response.SCID_len = sizeof(quic->CID.response.SCID);
+        quic->CID.response.SCID = ktime_get_coarse_boottime_ns();
+    }
+}
+
 static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device *wg)
 {
     u8 *buffer = (u8 *)skb_push(skb, hlen);
@@ -135,25 +161,31 @@ static void skb_add_type_noise(void *buffer)
 
 void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
 {
+    size_t data_len;
     int type = ((u8 *)buffer)[0];
+    unsigned int hlen = HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns());
     skb_add_type_noise(buffer);
     
     switch (type) {
         case MESSAGE_HANDSHAKE_INITIATION:
             xor_init(buffer, wg);
+            data_len = sizeof(struct message_handshake_initiation) + hlen;
             break;
 
         case MESSAGE_HANDSHAKE_RESPONSE:
             xor_resp(buffer, wg);
+            data_len = sizeof(struct message_handshake_response) + hlen;
             break;
 
         case MESSAGE_HANDSHAKE_COOKIE:
             xor_cook(buffer, wg);
+            data_len = sizeof(struct message_handshake_cookie) + hlen;
             break;
     }
 
     XOR_HEAD(buffer, wg);
-    skb_put_hidden_header(skb, HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns()), wg);
+    skb_put_hidden_header(skb, hlen, wg);
+    skb_put_quic_header(skb, data_len, type);
 }
 
 unsigned int hidden_data_header_len(unsigned int len)
