@@ -70,14 +70,17 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
 
     head_tmp = le32_to_cpu(((u32 *)(skb->data))[0]);
     if (head_tmp == 0xc0 || head_tmp == 0xd0)
-        skb_pull(skb, sizeof(struct QUIC_message_handshake));
+    {
+        hlen = sizeof(struct QUIC_message_handshake);
+        skb_pull(skb, hlen);
+    }
 
     head_tmp = XOR_HEAD_CALC(skb->data, wg);
     type = SKB_HIDDEN_TYPE(&head_tmp);
 
     if(type == 0)
     {
-        hlen = SKB_HIDDEN_HEADER_LEN(&head_tmp);
+        hlen += SKB_HIDDEN_HEADER_LEN(&head_tmp);
         skb_pull(skb, hlen);
         XOR_HEAD(skb->data, wg);
         type = SKB_HIDDEN_TYPE(skb->data);
@@ -184,7 +187,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
     }
 
     XOR_HEAD(buffer, wg);
-    skb_put_hidden_header(skb, hlen, wg);
+    //skb_put_hidden_header(skb, hlen, wg);
     skb_put_quic_header(skb, data_len, type);
 }
 
