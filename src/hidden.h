@@ -37,4 +37,14 @@ struct QUIC_message_resp {
 	__be16 data_len;
 } __attribute__((packed));
 
+struct QUIC_message_cook {
+	u8 flags;
+	__be32 version;
+	u8 DCID_len;
+	u8 DCID[3];
+	u8 SCID_len;
+	u8 token_len;
+	__be16 data_len;
+} __attribute__((packed));
+
 #endif 
