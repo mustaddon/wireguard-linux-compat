@@ -68,9 +68,9 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     if (unlikely(!pskb_may_pull(skb, 32)))
         return ERROR_HIDDEN_LEN;
 
-    if (((u8 *)(skb->data))[0] == 0xc0 || ((u8 *)(skb->data))[0] == 0xc2)
+    if (((u8 *)(skb->data))[0] & 0xc0)
     {
-        hlen = sizeof(struct QUIC_message_handshake);
+        hlen = sizeof(struct QUIC_message_init);
         skb_pull(skb, hlen);
     }
 
@@ -119,46 +119,24 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     return hlen;
 }
 
-static void skb_put_quic_header(void *skb, size_t data_len, int type)
+static void add_quick_init(void *skb, struct message_handshake_initiation *data, size_t data_len)
 {
-    struct QUIC_message_handshake *quic = (struct QUIC_message_handshake *)skb_push(skb, sizeof(struct QUIC_message_handshake));
-    quic->version = cpu_to_be32(1);
-	quic->token_len = 0;
-	quic->data_len = cpu_to_be16(0x4000 | data_len);
-
-    if (type == MESSAGE_HANDSHAKE_INITIATION)
-    {
-        quic->flags = 0xc0;
-        quic->CID.initiation.DCID_len = sizeof(quic->CID.initiation.DCID);
-        quic->CID.initiation.DCID = ktime_get_coarse_boottime_ns();
-        quic->CID.initiation.SCID_len = 0;
-    }
-    else
-    {
-        quic->flags = 0xd0;
-        quic->CID.response.DCID_len = 0;
-        quic->CID.response.SCID_len = sizeof(quic->CID.response.SCID);
-        quic->CID.response.SCID = ktime_get_coarse_boottime_ns();
-    }
-}
-
-static void add_quick_init(void *skb, size_t data_len)
-{
-    struct QUIC_message_handshake *quic = (struct QUIC_message_handshake *)skb_push(skb, sizeof(struct QUIC_message_handshake));
+    struct QUIC_message_init *quic = (struct QUIC_message_init *)skb_push(skb, sizeof(struct QUIC_message_init));
     quic->version = cpu_to_be32(1);
     quic->flags = 0xc0;
-    quic->CID.initiation.DCID_len = sizeof(quic->CID.initiation.DCID);
-    quic->CID.initiation.DCID = 1;//ktime_get_coarse_boottime_ns();
-    quic->CID.initiation.SCID_len = 0;
+    quic->DCID_len = sizeof(quic->DCID);
+    quic->DCID = 1;//ktime_get_coarse_boottime_ns();
+    quic->SCID_len = sizeof(quic->SCID);
+    quic->SCID[0] = 1;
 	quic->token_len = 0;
 	quic->data_len = cpu_to_be16(0x4000 | data_len);
 }
 
-static void add_quick_resp(void *skb, size_t data_len)
+static void add_quick_resp(void *skb, void *data, size_t data_len)
 {
     struct QUIC_message_handshake *quic = (struct QUIC_message_handshake *)skb_push(skb, sizeof(struct QUIC_message_handshake));
     quic->version = cpu_to_be32(1);
-    quic->flags = 0xc2;
+    quic->flags = 0xe0;
     quic->CID.response.DCID_len = 0;
     quic->CID.response.SCID_len = sizeof(quic->CID.response.SCID);
     quic->CID.response.SCID = 1;//ktime_get_coarse_boottime_ns();
@@ -195,13 +173,13 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
         case MESSAGE_HANDSHAKE_INITIATION:
             //xor_init(buffer, wg);
             data_len = sizeof(struct message_handshake_initiation) + hlen;
-            add_quick_init(skb, data_len);
+            add_quick_init(skb, (struct message_handshake_initiation *)buffer, data_len);
             break;
 
         case MESSAGE_HANDSHAKE_RESPONSE:
             //xor_resp(buffer, wg);
-            data_len = sizeof(struct message_handshake_response) + hlen;
-            add_quick_resp(skb, data_len);
+            //data_len = sizeof(struct message_handshake_response) + hlen;
+            //add_quick_resp(skb, buffer, data_len);
             break;
 
         case MESSAGE_HANDSHAKE_COOKIE:
