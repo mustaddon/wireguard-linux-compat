@@ -68,7 +68,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     if (unlikely(!pskb_may_pull(skb, 32)))
         return ERROR_HIDDEN_LEN;
 
-    if (((u8 *)(skb->data))[0] == 0xc0 || ((u8 *)(skb->data))[0] == 0xd0)
+    if (((u8 *)(skb->data))[0] == 0xc0 || ((u8 *)(skb->data))[0] == 0xc2)
     {
         hlen = sizeof(struct QUIC_message_handshake);
         skb_pull(skb, hlen);
@@ -158,10 +158,10 @@ static void add_quick_resp(void *skb, size_t data_len)
 {
     struct QUIC_message_handshake *quic = (struct QUIC_message_handshake *)skb_push(skb, sizeof(struct QUIC_message_handshake));
     quic->version = cpu_to_be32(1);
-    quic->flags = 0xd0;
+    quic->flags = 0xc2;
     quic->CID.response.DCID_len = 0;
-    quic->CID.response.SCID_len = 1;// sizeof(quic->CID.response.SCID);
-    quic->CID.response.SCID = ktime_get_coarse_boottime_ns();
+    quic->CID.response.SCID_len = sizeof(quic->CID.response.SCID);
+    quic->CID.response.SCID = 1;//ktime_get_coarse_boottime_ns();
 	quic->token_len = 0;
 	quic->data_len = cpu_to_be16(0x4000 | data_len);
 }
