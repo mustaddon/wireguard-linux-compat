@@ -126,8 +126,8 @@ static const __be32 quic_version = cpu_to_be32(1);
 static void add_quick_init(void *skb, struct message_handshake_initiation *data)
 {
     struct QUIC_message_init *quic = (struct QUIC_message_init *)skb_push(skb, sizeof(struct QUIC_message_init));
-    quic->version = quic_version;
     quic->flags = 0xc0;
+    quic->version = quic_version;
     quic->DCID_len = sizeof(quic->DCID);
     quic->DCID = 1;//ktime_get_coarse_boottime_ns();
     ((u32 *)(&quic->SCID_len))[0] = data->sender_index;
@@ -139,12 +139,12 @@ static void add_quick_init(void *skb, struct message_handshake_initiation *data)
 static void add_quick_resp(void *skb, struct message_handshake_response *data)
 {
     struct QUIC_message_resp *quic = (struct QUIC_message_resp *)skb_push(skb, sizeof(struct QUIC_message_resp));
-    quic->version = quic_version;
     quic->flags = 0xc0;
+    quic->version = quic_version;
+    ((u32 *)(&quic->DCID_len))[0] = data->receiver_index;
     quic->DCID_len = sizeof(quic->DCID);
-    quic->DCID[0] = 1;//ktime_get_coarse_boottime_ns();
+    ((u32 *)(&quic->SCID_len))[0] = data->sender_index;
     quic->SCID_len = sizeof(quic->SCID);
-    quic->SCID[0] = 1;
 	quic->token_len = 0;
 	quic->data_len = cpu_to_be16(0x4000 | sizeof(*data));
 }
@@ -185,7 +185,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
         case MESSAGE_HANDSHAKE_RESPONSE:
             //xor_resp(buffer, wg);
             //data_len = sizeof(struct message_handshake_response) + hlen;
-            //add_quick_resp(skb, buffer, data_len);
+            add_quick_resp(skb, (struct message_handshake_response *)buffer);
             break;
 
         case MESSAGE_HANDSHAKE_COOKIE:

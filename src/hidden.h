@@ -15,31 +15,6 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
 unsigned int hidden_data_header_len(unsigned int len);
 
 
-struct QUIC_CID_initiation {
-	u8 DCID_len;
-	u64 DCID;
-	u8 SCID_len;
-} __attribute__((packed));
-
-struct QUIC_CID_response {
-	u8 DCID_len;
-	u8 SCID_len;
-	u64 SCID;
-} __attribute__((packed));
-
-union QUIC_CID {
-	struct QUIC_CID_initiation initiation;
-	struct QUIC_CID_response response;
-};
-
-struct QUIC_message_handshake {
-	u8 flags;
-	__be32 version;
-	union QUIC_CID CID;
-	u8 token_len;
-	__be16 data_len;
-} __attribute__((packed));
-
 struct QUIC_message_init {
 	u8 flags;
 	__be32 version;
@@ -56,7 +31,7 @@ struct QUIC_message_resp {
 	__be32 version;
 	u8 DCID_len;
 	u8 DCID[3];
-	u32 SCID_len;
+	u8 SCID_len;
 	u8 SCID[3];
 	u8 token_len;
 	__be16 data_len;
