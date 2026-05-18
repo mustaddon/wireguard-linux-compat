@@ -15,16 +15,6 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
 unsigned int hidden_data_header_len(unsigned int len);
 
 
-struct QUIC_message_init {
-	u8 flags;
-	__be32 version;
-	u8 DCID_len;
-	u64 DCID;
-	u8 SCID_len;
-	u8 SCID[3];
-	u8 token_len;
-	__be16 data_len;
-} __attribute__((packed));
 
 struct QUIC_init_start {
 	u8 flags;
@@ -56,29 +46,10 @@ struct QUIC_cook {
 	u8 SCID_len;
 } __attribute__((packed));
 
-struct QUIC_message_resp {
-	u8 flags;
-	__be32 version;
-	u8 DCID_len;
-	u8 DCID[3];
-	u8 SCID_len;
-	u8 SCID[3];
-	u8 token_len;
-	__be16 data_len;
-} __attribute__((packed));
-
-struct QUIC_message_cook {
-	u8 flags;
-	__be32 version;
-	u8 DCID_len;
-	u8 DCID[3];
-	u8 SCID_len;
-	u8 token_len;
-	__be16 data_len;
-} __attribute__((packed));
-
-#define HIDDEN_EXTRA_LEN 7
-#define HIDDEN_HS_LEN (HIDDEN_EXTRA_LEN + max(sizeof(struct QUIC_message_init), sizeof(struct QUIC_message_resp)))
-#define HIDDEN_DATA_LEN (HIDDEN_EXTRA_LEN + 4)
+#define QUICK_INIT_LEN 21
+#define QUICK_RESP_LEN 16
+#define QUICK_COOK_LEN 13
+#define QUICK_DATA_LEN 4
+#define HIDDEN_HS_LEN 28 // 21 + 7
 
 #endif 
