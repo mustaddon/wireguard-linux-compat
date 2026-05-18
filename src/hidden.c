@@ -156,23 +156,23 @@ static void add_quick_init_end(size_t dlen, struct QUIC_init_end *quic)
 static void add_quick_init(struct message_handshake_initiation *data, struct QUIC_init *quic)
 {
     quic->DCID_len = sizeof(quic->DCID);
-    get_random_bytes(&quic->DCID, quic->DCID_len);
-    ((u32 *)(&quic->SCID_len))[0] = data->sender_index;
+    get_random_bytes(&quic->DCID, sizeof(quic->DCID));
     quic->SCID_len = sizeof(quic->SCID);
+    memcpy(&quic->SCID, &data->sender_index, sizeof(quic->SCID));
 }
 
 static void add_quick_resp(struct message_handshake_response *data, struct QUIC_resp *quic)
 {
-    ((u32 *)(&quic->DCID_len))[0] = data->receiver_index;
     quic->DCID_len = sizeof(quic->DCID);
-    ((u32 *)(&quic->SCID_len))[0] = data->sender_index;
+    memcpy(&quic->DCID, &data->receiver_index, sizeof(quic->DCID));
     quic->SCID_len = sizeof(quic->SCID);
+    memcpy(&quic->SCID, &data->sender_index, sizeof(quic->SCID));
 }
 
 static void add_quick_cook(struct message_handshake_cookie *data, struct QUIC_cook *quic)
 {
-    ((u32 *)(&quic->DCID_len))[0] = data->receiver_index;
     quic->DCID_len = sizeof(quic->DCID);
+    memcpy(&quic->DCID, &data->receiver_index, sizeof(quic->DCID));
     quic->SCID_len = 0;
 }
 
@@ -236,15 +236,15 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
     {
         quic = (u8 *)skb_push(skb, hlen);
         hlen -= QUIC_DATA_LEN;
-        ((u32 *)quic)[0] = ((struct message_data *)buffer)->key_idx;
         ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
         quic[0] = (((u32 *)buffer)[0]&0x18) | 0x40 | hlen;
+        memcpy(&quic[1], &((struct message_data *)buffer)->key_idx, 3);
         if (hlen > 0) get_random_bytes(quic+4, hlen);
     }
     else
     {
-        ((u32 *)buffer)[0] = ((struct message_data *)buffer)->key_idx;
         quic[0] = (((u8)ktime_get_coarse_boottime_ns())&0x18) | 0x40;
+        memcpy(&quic[1], &((struct message_data *)buffer)->key_idx, 3);
     }
 
     xor_data(buffer, wg);
