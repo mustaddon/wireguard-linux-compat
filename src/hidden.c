@@ -67,7 +67,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     if (unlikely(!pskb_may_pull(skb, 32)))
         return ERROR_HIDDEN_LEN;
 
-    //XOR_HEAD(skb->data, wg);
+    XOR_HEAD(skb->data, wg);
     hlen = HIDDEN_HEADER_LEN(((u8 *)(skb->data))[0]);
 
     if (((u8 *)(skb->data))[0] & 0x80)
@@ -210,10 +210,11 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
             break;
     }
 
-    //XOR_HEAD(buffer, wg);
     add_quick_init_start(flags, (struct QUIC_init_start *)quic);
     add_quick_init_end(dlen + hlen, (struct QUIC_init_end *)(quic + qlen - sizeof(struct QUIC_init_end)));
     if (hlen > 0) get_random_bytes(quic+qlen, hlen);
+
+    XOR_HEAD(buffer, wg);
 }
 
 unsigned int hidden_data_header_len(unsigned int len)
@@ -241,5 +242,5 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
     }
 
     xor_data(buffer, wg);
-    //XOR_HEAD(buffer, wg);
+    XOR_HEAD(buffer, wg);
 }
