@@ -30,33 +30,37 @@ static void xor_init(void *skb, struct wg_device *wg)
 {
     u32 *mask = U32_MASK(wg);
     u32 *ptr = (u32 *)(skb);
-    ptr[1] ^= ptr[0]^mask[1];
-    xor_mac2(skb, sizeof(struct message_handshake_initiation), ptr[0], mask);
+    u32 zero = ptr[0]^mask[0];
+    ptr[1] ^= zero^mask[1];
+    xor_mac2(skb, sizeof(struct message_handshake_initiation), zero, mask);
 }
 
 static void xor_resp(void *skb, struct wg_device *wg)
 {
     u32 *mask = U32_MASK(wg);
     u32 *ptr = (u32 *)(skb);
-    ptr[1] ^= ptr[0]^mask[1];
-    ptr[2] ^= ptr[0]^mask[2];
-    xor_mac2(skb, sizeof(struct message_handshake_response), ptr[0], mask);
+    u32 zero = ptr[0]^mask[0];
+    ptr[1] ^= zero^mask[1];
+    ptr[2] ^= zero^mask[2];
+    xor_mac2(skb, sizeof(struct message_handshake_response), zero, mask);
 }
 
 static void xor_cook(void *skb, struct wg_device *wg)
 {
     u32 *mask = U32_MASK(wg);
     u32 *ptr = (u32 *)(skb);
-    ptr[1] ^= ptr[0]^mask[1];
+    u32 zero = ptr[0]^mask[0];
+    ptr[1] ^= zero^mask[1];
 }
 
 static void xor_data(void *skb, struct wg_device *wg)
 {
     u32 *mask = U32_MASK(wg);
     u32 *ptr = (u32 *)(skb);
-    ptr[1] ^= ptr[0]^mask[1];
-    ptr[2] ^= ptr[0]^mask[2];
-    ptr[3] ^= ptr[0]^mask[3];
+    u32 zero = ptr[0]^mask[0];
+    ptr[1] ^= zero^mask[1];
+    ptr[2] ^= zero^mask[2];
+    ptr[3] ^= zero^mask[3];
 }
 
 size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg) 
