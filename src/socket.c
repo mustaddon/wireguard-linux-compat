@@ -190,7 +190,7 @@ int wg_socket_send_skb_to_peer(struct wg_peer *peer, struct sk_buff *skb, u8 ds)
 int wg_socket_send_buffer_to_peer(struct wg_peer *peer, void *buffer,
 				  size_t len, u8 ds)
 {
-	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
+	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN + HIDDEN_HS_LEN, GFP_ATOMIC);
 
 	if (unlikely(!skb))
 		return -ENOMEM;
@@ -216,7 +216,7 @@ int wg_socket_send_buffer_as_reply_to_skb(struct wg_device *wg,
 	if (unlikely(ret < 0))
 		return ret;
 
-	skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
+	skb = alloc_skb(len + SKB_HEADER_LEN + HIDDEN_HS_LEN, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return -ENOMEM;
 	skb_reserve(skb, SKB_HEADER_LEN);

@@ -7,8 +7,8 @@ static const unsigned char MASK[32] = {
     0x98, 0x31, 0x89, 0xaf, 0xd6, 0x5c, 0x85, 0x93, 
     0x8b, 0x90, 0x52, 0x33, 0x17, 0xff, 0x18, 0x57 };
 
-#define HIDDEN_HEADER_LEN(val) 0// (((val)&3) + 1)
-#define SKB_HIDDEN_HEADER_LEN(skb) HIDDEN_HEADER_LEN(((u8 *)(skb))[2])
+#define HIDDEN_HEADER_LEN(val) ((val)&7)
+#define SKB_HIDDEN_HEADER_LEN(skb) HIDDEN_HEADER_LEN(((u8 *)(skb))[0])
 #define HIDDEN_TYPE(val) ((val)&7)
 #define SKB_HIDDEN_TYPE(skb) HIDDEN_TYPE(((u8 *)(skb))[1])
 
@@ -62,27 +62,28 @@ static void xor_data(void *skb, struct wg_device *wg)
 size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg) 
 {
     int type;
-    size_t hlen = 0;
-    u32 head_tmp;
+    size_t hlen;
 
     if (unlikely(!pskb_may_pull(skb, 32)))
         return ERROR_HIDDEN_LEN;
+
+    hlen = HIDDEN_HEADER_LEN(((u8 *)(skb->data))[0]);
 
     if (((u8 *)(skb->data))[0] & 0x80)
     {
         if(((u8 *)(skb->data))[5] != 3)
         {
-            hlen = sizeof(struct QUIC_message_init);
+            hlen += sizeof(struct QUIC_message_init);
             type = MESSAGE_HANDSHAKE_INITIATION;
         }
         else if(((u8 *)(skb->data))[9] != 0)
         {
-            hlen = sizeof(struct QUIC_message_resp);
+            hlen += sizeof(struct QUIC_message_resp);
             type = MESSAGE_HANDSHAKE_RESPONSE;
         }
         else 
         {
-            hlen = sizeof(struct QUIC_message_cook);
+            hlen += sizeof(struct QUIC_message_cook);
             type = MESSAGE_HANDSHAKE_COOKIE;
         }
         skb_pull(skb, hlen);
@@ -90,6 +91,11 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     else
     {
         type = MESSAGE_DATA;
+        if (hlen > 0)
+        {
+            hlen += 4;
+            skb_pull(skb, hlen);
+        }
     }
 
     switch (type) {
@@ -126,50 +132,58 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     return hlen;
 }
 
+#define QUICK_FLAGS_INIT ((((u8)ktime_get_coarse_boottime_ns())&0x0F) | 0xC0)
+#define QUICK_DATA_LEN(val) cpu_to_be16(0x4000 | (val))
 static const __be32 quic_version = cpu_to_be32(1);
 
 static void add_quick_init(void *skb, struct message_handshake_initiation *data)
 {
-    struct QUIC_message_init *quic = (struct QUIC_message_init *)skb_push(skb, sizeof(struct QUIC_message_init));
-    quic->flags = 0xc0;
+    u8 flags = QUICK_FLAGS_INIT;
+    u8 hlen = HIDDEN_HEADER_LEN(flags);
+    struct QUIC_message_init *quic = (struct QUIC_message_init *)skb_push(skb, sizeof(struct QUIC_message_init) + hlen);
+    quic->flags = flags;
     quic->version = quic_version;
     quic->DCID_len = sizeof(quic->DCID);
-    quic->DCID = ktime_get_coarse_boottime_ns();
+    get_random_bytes(&quic->DCID, quic->DCID_len);
     ((u32 *)(&quic->SCID_len))[0] = data->sender_index;
     quic->SCID_len = sizeof(quic->SCID);
 	quic->token_len = 0;
-	quic->data_len = cpu_to_be16(0x4000 | sizeof(*data));
+	quic->data_len = QUICK_DATA_LEN(sizeof(*data) + hlen);
 }
 
 static void add_quick_resp(void *skb, struct message_handshake_response *data)
 {
-    struct QUIC_message_resp *quic = (struct QUIC_message_resp *)skb_push(skb, sizeof(struct QUIC_message_resp));
-    quic->flags = 0xc0;
+    u8 flags = QUICK_FLAGS_INIT;
+    u8 hlen = HIDDEN_HEADER_LEN(flags);
+    struct QUIC_message_resp *quic = (struct QUIC_message_resp *)skb_push(skb, sizeof(struct QUIC_message_resp) + hlen);
+    quic->flags = flags;
     quic->version = quic_version;
     ((u32 *)(&quic->DCID_len))[0] = data->receiver_index;
     quic->DCID_len = sizeof(quic->DCID);
     ((u32 *)(&quic->SCID_len))[0] = data->sender_index;
     quic->SCID_len = sizeof(quic->SCID);
 	quic->token_len = 0;
-	quic->data_len = cpu_to_be16(0x4000 | sizeof(*data));
+	quic->data_len = QUICK_DATA_LEN(sizeof(*data) + hlen);
 }
 
 static void add_quick_cook(void *skb, struct message_handshake_cookie *data)
 {
-    struct QUIC_message_cook *quic = (struct QUIC_message_cook *)skb_push(skb, sizeof(struct QUIC_message_cook));
-    quic->flags = 0xc0;
+    u8 flags = QUICK_FLAGS_INIT;
+    u8 hlen = HIDDEN_HEADER_LEN(flags);
+    struct QUIC_message_cook *quic = (struct QUIC_message_cook *)skb_push(skb, sizeof(struct QUIC_message_cook) + hlen);
+    quic->flags = flags;
     quic->version = quic_version;
     ((u32 *)(&quic->DCID_len))[0] = data->receiver_index;
     quic->DCID_len = sizeof(quic->DCID);
     quic->SCID_len = 0;
 	quic->token_len = 0;
-	quic->data_len = cpu_to_be16(0x4000 | sizeof(*data));
+	quic->data_len = QUICK_DATA_LEN(sizeof(*data) + hlen);
 }
 
 static void add_quick_data(void *skb, struct message_data *data)
 {
     ((u32 *)data)[0] = data->key_idx;
-    ((u8 *)data)[0] = 0x43;
+    ((u8 *)data)[0] = (((u8)ktime_get_coarse_boottime_ns())>>3) | 0x40;
 }
 
 static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device *wg)
@@ -181,61 +195,54 @@ static void skb_put_hidden_header(void *skb, unsigned int hlen, struct wg_device
     buffer[0]^=U8_MASK(wg)[0];
 }
 
-static void skb_add_type_noise(void *buffer)
-{
-    u8 type = ((u8 *)buffer)[0];
-    ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
-    ((u8 *)buffer)[0] = 0x43;
-    ((u8 *)buffer)[1] = type;// (((u8 *)buffer)[0]<<3) | type;
-    ((u8 *)buffer)[2] = 0;
-    ((u8 *)buffer)[3] = 0;
-}
-
 void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
 {
-    size_t data_len;
     int type = ((u8 *)buffer)[0];
-    unsigned int hlen = 0;// HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns());
-    skb_add_type_noise(buffer);
+    ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
     
     switch (type) {
         case MESSAGE_HANDSHAKE_INITIATION:
             //xor_init(buffer, wg);
-            //data_len = sizeof(struct message_handshake_initiation) + hlen;
             add_quick_init(skb, (struct message_handshake_initiation *)buffer);
             break;
 
         case MESSAGE_HANDSHAKE_RESPONSE:
             //xor_resp(buffer, wg);
-            //data_len = sizeof(struct message_handshake_response) + hlen;
             add_quick_resp(skb, (struct message_handshake_response *)buffer);
             break;
 
         case MESSAGE_HANDSHAKE_COOKIE:
             //xor_cook(buffer, wg);
-            //data_len = sizeof(struct message_handshake_cookie) + hlen;
             add_quick_cook(skb, (struct message_handshake_cookie *)buffer);
             break;
     }
 
     //XOR_HEAD(buffer, wg);
-    //skb_put_hidden_header(skb, hlen, wg);
-    //skb_put_quic_header(skb, data_len, type);
 }
 
 unsigned int hidden_data_header_len(unsigned int len)
 {
-    return len != 32 ? 0 : HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns());
+    if(len != 32) return 0;
+
+    return HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns()) + 4;
 }
 
 void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_device *wg)
 {
-    add_quick_data(skb, (struct message_data *)buffer);
+    //add_quick_data(skb, (struct message_data *)buffer);
     //xor_data(buffer, wg);
     //XOR_HEAD(buffer, wg);
 
-    if(hlen > 0) 
+    if (hlen > 0) 
     {
-        //skb_put_hidden_header(skb, hlen, wg);
+        u8 *hh = (u8 *)skb_push(skb, hlen);
+        ((u32 *)hh)[0] = ((struct message_data *)buffer)->key_idx;
+        ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
+        ((u8 *)hh)[0] = ((((u32 *)buffer)[0]>>1)&0x18) | 0x40 | (hlen-4);
+    }
+    else
+    {
+        ((u32 *)buffer)[0] = ((struct message_data *)buffer)->key_idx;
+        ((u8 *)buffer)[0] = (((u8)ktime_get_coarse_boottime_ns())&0x18) | 0x40;
     }
 }

@@ -47,4 +47,8 @@ struct QUIC_message_cook {
 	__be16 data_len;
 } __attribute__((packed));
 
+#define HIDDEN_EXTRA_LEN 7
+#define HIDDEN_HS_LEN (HIDDEN_EXTRA_LEN + max(sizeof(struct QUIC_message_init), sizeof(struct QUIC_message_resp)))
+#define HIDDEN_DATA_LEN (HIDDEN_EXTRA_LEN + 4)
+
 #endif 

@@ -62,18 +62,24 @@ diff -NauBw ./socket.c ./socket.c
 -#include "device.h"
 +#include "hidden.h"
 +#include "device.h"
+@@ -203,1 +203,1 @@
+-	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
++	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN + HIDDEN_HS_LEN, GFP_ATOMIC);
 @@ -208,4 +208,5 @@
  	skb_reserve(skb, SKB_HEADER_LEN);
  	skb_set_inner_network_header(skb, 0);
 +	skb_put_hidden_handshake(skb, buffer, peer->device);
  	skb_put_data(skb, buffer, len);
  	return wg_socket_send_skb_to_peer(peer, skb, ds);
-@@ -231,4 +231,5 @@
+@@ -228,6 +228,7 @@
+-	skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
++	skb = alloc_skb(len + SKB_HEADER_LEN + HIDDEN_HS_LEN, GFP_ATOMIC);
+ 	if (unlikely(!skb))
+ 		return -ENOMEM;
  	skb_reserve(skb, SKB_HEADER_LEN);
  	skb_set_inner_network_header(skb, 0);
 +	skb_put_hidden_handshake(skb, buffer, wg);
  	skb_put_data(skb, buffer, len);
- 
 diff -NauBw ./main.c ./main.c
 --- ./main.c	2026-05-06 16:07:16.822033015 +0200
 +++ ./main.c	2026-05-06 16:44:55.541329023 +0200
