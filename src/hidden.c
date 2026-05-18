@@ -214,7 +214,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
     add_quick_init_end(dlen + hlen, (struct QUIC_init_end *)(quic + qlen - sizeof(struct QUIC_init_end)));
     if (hlen > 0) get_random_bytes(quic+qlen, hlen);
 
-    XOR_HEAD(buffer, wg);
+    XOR_HEAD(quic, wg);
 }
 
 unsigned int hidden_data_header_len(unsigned int len)
@@ -226,21 +226,23 @@ unsigned int hidden_data_header_len(unsigned int len)
 
 void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_device *wg)
 {
+    u8 *quic = (u8 *)buffer;
+
     if (hlen > 0) 
     {
-        u8 *hh = (u8 *)skb_push(skb, hlen);
+        quic = (u8 *)skb_push(skb, hlen);
         hlen -= 4;
-        ((u32 *)hh)[0] = ((struct message_data *)buffer)->key_idx;
+        ((u32 *)quic)[0] = ((struct message_data *)buffer)->key_idx;
         ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
-        ((u8 *)hh)[0] = ((((u32 *)buffer)[0]>>1)&0x18) | 0x40 | hlen;
-        if (hlen > 0) get_random_bytes(hh+4, hlen);
+        quic[0] = (((u32 *)buffer)[0]&0x18) | 0x40 | hlen;
+        if (hlen > 0) get_random_bytes(quic+4, hlen);
     }
     else
     {
         ((u32 *)buffer)[0] = ((struct message_data *)buffer)->key_idx;
-        ((u8 *)buffer)[0] = (((u8)ktime_get_coarse_boottime_ns())&0x18) | 0x40;
+        quic[0] = (((u8)ktime_get_coarse_boottime_ns())&0x18) | 0x40;
     }
 
     xor_data(buffer, wg);
-    XOR_HEAD(buffer, wg);
+    XOR_HEAD(quic, wg);
 }
