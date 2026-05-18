@@ -26,6 +26,36 @@ struct QUIC_message_init {
 	__be16 data_len;
 } __attribute__((packed));
 
+struct QUIC_init_start {
+	u8 flags;
+	__be32 version;
+} __attribute__((packed));
+
+struct QUIC_init_end {
+	u8 token_len;
+	__be16 data_len;
+} __attribute__((packed));
+
+struct QUIC_init {
+	u8 DCID_len;
+	u64 DCID;
+	u8 SCID_len;
+	u8 SCID[3];
+} __attribute__((packed));
+
+struct QUIC_resp {
+	u8 DCID_len;
+	u8 DCID[3];
+	u8 SCID_len;
+	u8 SCID[3];
+} __attribute__((packed));
+
+struct QUIC_cook {
+	u8 DCID_len;
+	u8 DCID[3];
+	u8 SCID_len;
+} __attribute__((packed));
+
 struct QUIC_message_resp {
 	u8 flags;
 	__be32 version;
