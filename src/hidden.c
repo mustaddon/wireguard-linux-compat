@@ -78,17 +78,17 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     {
         if(((u8 *)(skb->data))[5] != 3)
         {
-            hlen += QUICK_INIT_LEN;
+            hlen += QUIC_INIT_LEN;
             type = MESSAGE_HANDSHAKE_INITIATION;
         }
         else if(((u8 *)(skb->data))[9] != 0)
         {
-            hlen += QUICK_RESP_LEN;
+            hlen += QUIC_RESP_LEN;
             type = MESSAGE_HANDSHAKE_RESPONSE;
         }
         else 
         {
-            hlen += QUICK_COOK_LEN;
+            hlen += QUIC_COOK_LEN;
             type = MESSAGE_HANDSHAKE_COOKIE;
         }
         skb_pull(skb, hlen);
@@ -98,7 +98,7 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
         type = MESSAGE_DATA;
         if (hlen > 0)
         {
-            hlen += QUICK_DATA_LEN;
+            hlen += QUIC_DATA_LEN;
             skb_pull(skb, hlen);
         }
     }
@@ -188,7 +188,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
     switch (type) {
         case MESSAGE_HANDSHAKE_INITIATION:
             dlen = sizeof(struct message_handshake_initiation);
-            qlen = QUICK_INIT_LEN;
+            qlen = QUIC_INIT_LEN;
             quic = (u8 *)skb_push(skb, qlen + hlen);
             add_quick_init((struct message_handshake_initiation *)buffer,
                 (struct QUIC_init *)(quic + sizeof(struct QUIC_init_start)));
@@ -197,7 +197,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
 
         case MESSAGE_HANDSHAKE_RESPONSE:
             dlen = sizeof(struct message_handshake_response);
-            qlen = QUICK_RESP_LEN;
+            qlen = QUIC_RESP_LEN;
             quic = (u8 *)skb_push(skb, qlen + hlen);
             add_quick_resp((struct message_handshake_response *)buffer,
                 (struct QUIC_resp *)(quic + sizeof(struct QUIC_init_start)));
@@ -206,7 +206,7 @@ void skb_put_hidden_handshake(void *skb, void *buffer, struct wg_device *wg)
 
         case MESSAGE_HANDSHAKE_COOKIE:
             dlen = sizeof(struct message_handshake_cookie);
-            qlen = QUICK_COOK_LEN;
+            qlen = QUIC_COOK_LEN;
             quic = (u8 *)skb_push(skb, qlen + hlen);
             add_quick_cook((struct message_handshake_cookie *)buffer,
                 (struct QUIC_cook *)(quic + sizeof(struct QUIC_init_start)));
@@ -225,7 +225,7 @@ unsigned int hidden_data_header_len(unsigned int len)
 {
     if(len != 32) return 0;
 
-    return HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns()) + 4;
+    return HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns()) + QUIC_DATA_LEN;
 }
 
 void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_device *wg)
@@ -235,7 +235,7 @@ void skb_put_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_d
     if (hlen > 0) 
     {
         quic = (u8 *)skb_push(skb, hlen);
-        hlen -= 4;
+        hlen -= QUIC_DATA_LEN;
         ((u32 *)quic)[0] = ((struct message_data *)buffer)->key_idx;
         ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
         quic[0] = (((u32 *)buffer)[0]&0x18) | 0x40 | hlen;

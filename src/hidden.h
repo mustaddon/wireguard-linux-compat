@@ -46,10 +46,10 @@ struct QUIC_cook {
 	u8 SCID_len;
 } __attribute__((packed));
 
-#define QUICK_INIT_LEN 21
-#define QUICK_RESP_LEN 16
-#define QUICK_COOK_LEN 13
-#define QUICK_DATA_LEN 4
+#define QUIC_INIT_LEN 21
+#define QUIC_RESP_LEN 16
+#define QUIC_COOK_LEN 13
+#define QUIC_DATA_LEN 4
 #define HIDDEN_HS_LEN 28 // 21 + 7
 
 #endif 
