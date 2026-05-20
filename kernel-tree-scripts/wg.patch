@@ -48,7 +48,7 @@ diff -NauBw ./send.c ./send.c
  		return false;
 @@ -206,2 +206,3 @@
  	header->counter = cpu_to_le64(PACKET_CB(skb)->nonce);
-+	skb_put_hidden_data(skb, header, hidden_len, keypair->entry.peer->device);
++	skb_push_hidden_data(skb, header, hidden_len, keypair->entry.peer);
  	pskb_put(skb, trailer, trailer_len);
 @@ -210,3 +210,3 @@
  	sg_init_table(sg, num_frags);
@@ -68,7 +68,7 @@ diff -NauBw ./socket.c ./socket.c
 @@ -208,4 +208,5 @@
  	skb_reserve(skb, SKB_HEADER_LEN);
  	skb_set_inner_network_header(skb, 0);
-+	skb_put_hidden_handshake(skb, buffer, peer->device);
++	skb_push_hidden_handshake(skb, buffer, peer);
  	skb_put_data(skb, buffer, len);
  	return wg_socket_send_skb_to_peer(peer, skb, ds);
 @@ -228,6 +228,7 @@
@@ -78,7 +78,7 @@ diff -NauBw ./socket.c ./socket.c
  		return -ENOMEM;
  	skb_reserve(skb, SKB_HEADER_LEN);
  	skb_set_inner_network_header(skb, 0);
-+	skb_put_hidden_handshake(skb, buffer, wg);
++	skb_push_hidden_handshake_cookie(skb, buffer, wg);
  	skb_put_data(skb, buffer, len);
 diff -NauBw ./main.c ./main.c
 --- ./main.c	2026-05-06 16:07:16.822033015 +0200

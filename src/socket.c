@@ -197,7 +197,7 @@ int wg_socket_send_buffer_to_peer(struct wg_peer *peer, void *buffer,
 
 	skb_reserve(skb, SKB_HEADER_LEN);
 	skb_set_inner_network_header(skb, 0);
-	skb_put_hidden_handshake(skb, buffer, peer->device);
+	skb_push_hidden_handshake(skb, buffer, peer);
 	skb_put_data(skb, buffer, len);
 	return wg_socket_send_skb_to_peer(peer, skb, ds);
 }
@@ -221,7 +221,7 @@ int wg_socket_send_buffer_as_reply_to_skb(struct wg_device *wg,
 		return -ENOMEM;
 	skb_reserve(skb, SKB_HEADER_LEN);
 	skb_set_inner_network_header(skb, 0);
-	skb_put_hidden_handshake(skb, buffer, wg);
+	skb_push_hidden_handshake_cookie(skb, buffer, wg);
 	skb_put_data(skb, buffer, len);
 
 	if (endpoint.addr.sa_family == AF_INET)
