@@ -26,6 +26,7 @@ BRANCH="test4"
 START_DIR=$(pwd)
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 TMP_DIR="$SCRIPT_DIR/_tmp"
+rm -rf "$TMP_DIR"
 
 trap "rm -rf $TMP_DIR; cd $START_DIR" EXIT SIGINT SIGTERM
 
