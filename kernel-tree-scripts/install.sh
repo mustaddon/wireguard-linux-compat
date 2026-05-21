@@ -115,6 +115,7 @@ fi
 modprobe -r wireguard
 rm -rf "$MOD_DIR"/wireguard.ko*
 cp "$CODE_DIR/wireguard.ko" "$MOD_DIR"
+depmod -a
 modprobe wireguard
 dmesg | grep -i wireguard
 systemctl restart wg-quick@*
