@@ -9,16 +9,16 @@ if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [[ "$ID" == 'ubuntu' ]] || [[ "$ID" == 'debian' ]]; then
 		apt-get update
-	    apt-get install -y libelf-dev linux-headers-$(uname -r) build-essential pkg-config curl wget unzip git patch wireguard-tools resolvconf
+	    apt-get install -y libelf-dev linux-headers-$(uname -r) build-essential pkg-config wget unzip git patch wireguard-tools resolvconf
     elif [[ "$ID" == 'fedora' ]] || [[ "$ID" == 'oracle' ]]; then
-        dnf install -y elfutils-libelf-devel kernel-devel pkg-config @development-tools curl wget unzip git patch wireguard-tools openresolv
+        dnf install -y elfutils-libelf-devel kernel-devel pkg-config @development-tools wget unzip git patch wireguard-tools openresolv
 	elif [[ "$ID" == 'centos' ]] || [[ "$ID" == 'almalinux' ]] || [[ "$ID" == 'rocky' ]]; then
-		yum install -y elfutils-libelf-devel kernel-devel pkgconfig "@Development Tools" curl wget unzip git patch
+		yum install -y elfutils-libelf-devel kernel-devel pkgconfig "@Development Tools" wget unzip git patch
 	elif [[ "$ID" == 'arch' ]]; then
-        pacman -S --needed --noconfirm linux-headers base-devel pkg-config curl wget unzip git patch wireguard-tools openresolv
+        pacman -S --needed --noconfirm linux-headers base-devel pkg-config wget unzip git patch wireguard-tools openresolv
 	elif [[ "$ID" == 'alpine' ]]; then
 		apk update
-        apk add build-base linux-hardened-dev curl wget unzip git patch wireguard-tools openresolv
+        apk add build-base linux-hardened-dev wget unzip git patch wireguard-tools openresolv
 	fi
 fi
 
