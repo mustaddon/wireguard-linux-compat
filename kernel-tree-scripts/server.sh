@@ -150,7 +150,7 @@ function installQuestions() {
 		read -rp "Server WireGuard IPv4: " -e -i 192.168.96.1 SERVER_WG_IPV4
 	done
 
-	until [[ ${SERVER_WG_IPV6} =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{2,4}$: ]]; do
+	until [[ ${SERVER_WG_IPV6} =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{2,4}$ ]]; do
 		read -rp "Server WireGuard IPv6: " -e -i ::ffff:c0a8:6001 SERVER_WG_IPV6
 	done
 
