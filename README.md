@@ -5,7 +5,7 @@ WireGuard was merged into the Linux kernel for 5.6. This repository contains a b
 **More information may be found at [WireGuard.com](https://www.wireguard.com/).**
 
 ```bash
-curl -o wgp-install.sh "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/test2/kernel-tree-scripts/install.sh?t=$(date +%s)"
+wget --no-cache -O wgp-install.sh "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/test4/kernel-tree-scripts/install.sh"
 sudo bash wgp-install.sh
 ```
 

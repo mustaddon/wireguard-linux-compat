@@ -36,7 +36,7 @@ fi
 function compileCompat() {
     TMP_ZIP="$SCRIPT_DIR/temp-wg.zip"
 
-    wget -O "$TMP_ZIP" "https://github.com/mustaddon/wireguard-linux-compat/archive/refs/heads/$BRANCH.zip?t=$(date +%s)"
+    wget --no-cache -O "$TMP_ZIP" "https://github.com/mustaddon/wireguard-linux-compat/archive/refs/heads/$BRANCH.zip"
     unzip "$TMP_ZIP" -d "$TMP_DIR"
 
     CODE_DIR=$(find "$TMP_DIR" -type d -name "src")
@@ -49,6 +49,30 @@ function compileCompat() {
     rm -f "$TMP_ZIP"
 
     make -C "$CODE_DIR" -j$(nproc)
+}
+
+function applyPatch() {
+    if [ -n "$1" ]; then
+        wget --no-cache "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/$BRANCH/kernel-tree-scripts/$1"
+
+        if [ ! -f "$1" ]; then
+            echo "Error: Patch '$1' not found."
+            exit 1
+        fi
+
+        if patch -Np1 -f --dry-run < "$1" > /dev/null 2>&1; then
+            echo "Applying patch '$1'..."
+            patch -Np1 -f < "$1"
+            echo "Patch '$1' applied."
+        else
+            echo "Error: Conflict detected! Patch '$1' not applied."
+            patch -Np1 -f --dry-run < "$1"
+            exit 1
+        fi
+    else
+        echo "Error: Patch null argument."
+        exit 1
+    fi
 }
 
 function compile() {
@@ -66,21 +90,9 @@ function compile() {
 
     cd "$CODE_DIR"
 
-    PATCH_FILE="$TMP_DIR/hwg.patch"
+    applyPatch "wg.patch"
 
-    curl -o "$PATCH_FILE" "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/$BRANCH/kernel-tree-scripts/wg.patch?t=$(date +%s)"
-
-    if patch -Np1 -f --dry-run < "$PATCH_FILE" > /dev/null 2>&1; then
-        echo "No conflicts detected. Applying patch..."
-        patch -Np1 -f < "$PATCH_FILE"
-        echo "Patch applied."
-    else
-        echo "Conflict detected! Patch not applied."
-        patch -Np1 -f --dry-run < "$PATCH_FILE"
-        exit 1
-    fi
-
-    curl -O "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/$BRANCH/src/{hidden.h,hidden.c,version.h}"
+    wget --no-cache -N https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/$BRANCH/src/{hidden.h,hidden.c,version.h}
 
     make
 }
@@ -112,3 +124,5 @@ cp "$CODE_DIR/wireguard.ko" "$MOD_DIR"
 modprobe wireguard
 dmesg | grep -i wireguard
 systemctl restart wg-quick@*
+
+rm -r "$TMP_DIR"
