@@ -10,11 +10,11 @@ This project is released under the [GPLv2](COPYING).
 
 
 ```bash
-wget --no-cache -O wgp-install.sh "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/test4/kernel-tree-scripts/install.sh"
+wget --no-cache -O wgp-install.sh https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/test4/kernel-tree-scripts/install.sh
 sudo bash wgp-install.sh
 ```
 
 ```bash
-wget --no-cache -O wg-server.sh "https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/test4/kernel-tree-scripts/server.sh"
+wget --no-cache -O wg-server.sh https://raw.githubusercontent.com/mustaddon/wireguard-linux-compat/refs/heads/test4/kernel-tree-scripts/server.sh
 sudo bash wg-server.sh
 ```
