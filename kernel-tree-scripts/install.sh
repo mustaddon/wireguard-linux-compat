@@ -9,44 +9,38 @@ if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [[ "$ID" == 'ubuntu' ]] || [[ "$ID" == 'debian' ]]; then
 		apt-get update
-	    apt-get install -y libelf-dev linux-headers-$(uname -r) build-essential pkg-config wget unzip git patch wireguard-tools resolvconf
+	    apt-get install -y libelf-dev linux-headers-$(uname -r) build-essential pkg-config wget git patch wireguard-tools resolvconf
     elif [[ "$ID" == 'fedora' ]] || [[ "$ID" == 'oracle' ]]; then
-        dnf install -y elfutils-libelf-devel kernel-devel pkg-config @development-tools wget unzip git patch wireguard-tools openresolv
+        dnf install -y elfutils-libelf-devel kernel-devel pkg-config @development-tools wget git patch wireguard-tools openresolv
 	elif [[ "$ID" == 'centos' ]] || [[ "$ID" == 'almalinux' ]] || [[ "$ID" == 'rocky' ]]; then
-		yum install -y elfutils-libelf-devel kernel-devel pkgconfig "@Development Tools" wget unzip git patch
+		yum install -y elfutils-libelf-devel kernel-devel pkgconfig "@Development Tools" wget git patch
 	elif [[ "$ID" == 'arch' ]]; then
-        pacman -S --needed --noconfirm linux-headers base-devel pkg-config wget unzip git patch wireguard-tools openresolv
+        pacman -S --needed --noconfirm linux-headers base-devel pkg-config wget git patch wireguard-tools openresolv
 	elif [[ "$ID" == 'alpine' ]]; then
 		apk update
-        apk add build-base linux-hardened-dev wget unzip git patch wireguard-tools openresolv
+        apk add build-base linux-hardened-dev wget git patch wireguard-tools openresolv
 	fi
 fi
 
-START_DIR=$(pwd)
-trap "cd $START_DIR" EXIT SIGINT SIGTERM
-
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-TMP_DIR="$SCRIPT_DIR/temp-wg"
 BRANCH="test4"
+START_DIR=$(pwd)
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+TMP_DIR="$SCRIPT_DIR/_tmp"
 
-if [ -d "$TMP_DIR" ]; then
-    rm -r "$TMP_DIR"
-fi
+trap "rm -rf $TMP_DIR; cd $START_DIR" EXIT SIGINT SIGTERM
 
 function compileCompat() {
-    TMP_ZIP="$SCRIPT_DIR/temp-wg.zip"
+    git clone --branch "$BRANCH" --single-branch --depth 1 --no-checkout https://github.com/mustaddon/wireguard-linux-compat "$TMP_DIR"
+    cd "$TMP_DIR"
+    git sparse-checkout set src
+    git checkout
 
-    wget --no-cache -O "$TMP_ZIP" "https://github.com/mustaddon/wireguard-linux-compat/archive/refs/heads/$BRANCH.zip"
-    unzip "$TMP_ZIP" -d "$TMP_DIR"
-
-    CODE_DIR=$(find "$TMP_DIR" -type d -name "src")
+    CODE_DIR="$TMP_DIR/src"
 
     if [ ! -d "$CODE_DIR" ]; then
         echo "Error: Directory '$CODE_DIR' does not exist."
         exit 1
     fi
-
-    rm -f "$TMP_ZIP"
 
     make -C "$CODE_DIR" -j$(nproc)
 }
@@ -124,5 +118,3 @@ cp "$CODE_DIR/wireguard.ko" "$MOD_DIR"
 modprobe wireguard
 dmesg | grep -i wireguard
 systemctl restart wg-quick@*
-
-rm -r "$TMP_DIR"

@@ -7,7 +7,7 @@
 #define SKB_HIDDEN_HEADER_LEN(skb) HIDDEN_HEADER_LEN(((u8 *)(skb))[0])
 #define HIDDEN_TYPE(val) ((val)&7)
 #define SKB_HIDDEN_TYPE(skb) HIDDEN_TYPE(((u8 *)(skb))[1])
-#define	XOR_HEAD(skb, mask) ((u8 *)(skb))[0]=(((u8 *)(skb))[0]&0xF0)|((((u8 *)(skb))[0]^(mask)[3])&0x0F)
+#define XOR_HEAD(skb, mask) ((u8 *)(skb))[0]=(((u8 *)(skb))[0]&0xF0)|((((u8 *)(skb))[0]^(mask)[3])&0x0F)
 
 
 static void xor_mac2(void *skb, size_t len, u32 zero, u32 *mask)
