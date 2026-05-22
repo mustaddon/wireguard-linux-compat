@@ -147,11 +147,11 @@ function installQuestions() {
 	done
 
 	until [[ ${SERVER_WG_IPV4} =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; do
-		read -rp "Server WireGuard IPv4: " -e -i 192.168.96.1 SERVER_WG_IPV4
+		read -rp "Server WireGuard IPv4: " -e -i "192.168.$(shuf -i 104-254 -n 1).1" SERVER_WG_IPV4
 	done
 
 	until [[ ${SERVER_WG_IPV6} =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{2,4}$ ]]; do
-		read -rp "Server WireGuard IPv6: " -e -i ::ffff:c0a8:6001 SERVER_WG_IPV6
+		read -rp "Server WireGuard IPv6: " -e -i "$(echo "${SERVER_WG_IPV4}" | awk -F. '{printf "::ffff:%02x%02x:%02x%02x", $1, $2, $3, $4}')" SERVER_WG_IPV6
 	done
 
 	# Generate random number within private ports range
@@ -258,7 +258,7 @@ ALLOWED_IPS=${ALLOWED_IPS}" >/etc/wireguard/params
 
 	# Add server interface
 	echo "[Interface]
-Address = ${SERVER_WG_IPV4}/24,${SERVER_WG_IPV6}/64
+Address = ${SERVER_WG_IPV4}/24,${SERVER_WG_IPV6}/120
 ListenPort = ${SERVER_PORT}
 PrivateKey = ${SERVER_PRIV_KEY}" >"/etc/wireguard/${SERVER_WG_NIC}.conf"
 
