@@ -151,7 +151,7 @@ function installQuestions() {
 	done
 
 	until [[ ${SERVER_WG_IPV6} =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{2,4}$ ]]; do
-		read -rp "Server WireGuard IPv6: " -e -i "$(echo "${SERVER_WG_IPV4}" | awk -F. '{printf "::ffff:%02x%02x:%02x%02x", $1, $2, $3, $4}')" SERVER_WG_IPV6
+		read -rp "Server WireGuard IPv6: " -e -i "$(echo "${SERVER_WG_IPV4}" | awk -F. '{printf "64:ff9b::%02x%02x:%02x%02x", $1, $2, $3, $4}')" SERVER_WG_IPV6
 	done
 
 	# Generate random number within private ports range
