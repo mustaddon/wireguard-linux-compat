@@ -66,6 +66,10 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
         if (unlikely(((u8 *)(skb->data))[0] & 1))
         {
             hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_data), wg->static_identity.static_public);
+            
+            if (unlikely(!pskb_may_pull(skb, hlen)))
+                return ERROR_HIDDEN_LEN;
+
             skb_pull(skb, hlen);
         }
     }
@@ -86,6 +90,10 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
             hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_cook), wg->static_identity.static_public);
             type = MESSAGE_HANDSHAKE_COOKIE;
         }
+
+        if (unlikely(!pskb_may_pull(skb, hlen)))
+            return ERROR_HIDDEN_LEN;
+
         skb_pull(skb, hlen);
     }
 
