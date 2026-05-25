@@ -201,7 +201,7 @@ void skb_push_hidden_handshake(void *skb, void *buffer, struct wg_peer *peer)
     
     get_random_bytes(buffer, sizeof(u32));
     hlen = ((u8 *)buffer)[0]&HIDDEN_NOIZE;
-    flags = (hlen ? 0xC1 : 0xC0) | (((u8 *)buffer)[1]&0x0E);
+    flags = (hlen>0 ? 0xC1 : 0xC0) | (((u8 *)buffer)[1]&0x0E);
     
     switch (type) {
         case MESSAGE_HANDSHAKE_INITIATION:
