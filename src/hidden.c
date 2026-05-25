@@ -204,12 +204,10 @@ void skb_push_hidden_handshake(void *skb, void *buffer, struct wg_peer *peer)
 
     ((u32 *)buffer)[0] = noize;
 
-    flags = 0xC0 | (((u8)noize)&0x0F);
+    flags = 0xC1 | (((u8)noize)&0x0F);
 
-    if (flags&1) {
-        hlen = noize&HIDDEN_NOIZE;
-        if(hlen == 0) hlen = 1;
-    }
+    hlen = noize&HIDDEN_NOIZE;
+    if(hlen == 0) hlen = 1;
     
     switch (type) {
         case MESSAGE_HANDSHAKE_INITIATION:
