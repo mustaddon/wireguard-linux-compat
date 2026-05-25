@@ -52,7 +52,7 @@ struct QUIC_data {
 	u8 DCID[3];
 } __attribute__((packed));
 
-#define HIDDEN_NOIZE 7
+#define HIDDEN_NOIZE 31
 #define HIDDEN_HS_LEN (sizeof(struct QUIC_init) + HIDDEN_NOIZE)
 
 #endif 

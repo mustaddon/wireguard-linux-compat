@@ -195,12 +195,16 @@ static void add_quick_cook(
 void skb_push_hidden_handshake(void *skb, void *buffer, struct wg_peer *peer)
 {
     u8 *quic;
-    u32 noize = ktime_get_coarse_boottime_ns();
+    u32 noize;
     u8 type = ((u8 *)buffer)[0];
-    u8 flags = 0xC0 | (((u8)noize)&0x0F);
+    u8 flags;
     size_t hlen = 0;
     
+    get_random_bytes(&noize, sizeof(noize));
+
     ((u32 *)buffer)[0] = noize;
+
+    flags = 0xC0 | (((u8)noize)&0x0F);
 
     if (flags&1) {
         hlen = noize&HIDDEN_NOIZE;
