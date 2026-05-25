@@ -195,19 +195,13 @@ static void add_quick_cook(
 void skb_push_hidden_handshake(void *skb, void *buffer, struct wg_peer *peer)
 {
     u8 *quic;
-    u32 noize;
     u8 type = ((u8 *)buffer)[0];
     u8 flags;
-    size_t hlen = 0;
+    size_t hlen;
     
-    get_random_bytes(&noize, sizeof(noize));
-
-    ((u32 *)buffer)[0] = noize;
-
-    flags = 0xC1 | (((u8)noize)&0x0F);
-
-    hlen = noize&HIDDEN_NOIZE;
-    if(hlen == 0) hlen = 1;
+    get_random_bytes(buffer, sizeof(u32));
+    hlen = ((u8 *)buffer)[0]&HIDDEN_NOIZE;
+    flags = (hlen ? 0xC1 : 0xC0) | (((u8 *)buffer)[1]&0x0E);
     
     switch (type) {
         case MESSAGE_HANDSHAKE_INITIATION:
