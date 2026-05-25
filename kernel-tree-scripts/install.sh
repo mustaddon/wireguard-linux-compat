@@ -22,7 +22,7 @@ if [ -f /etc/os-release ]; then
 	fi
 fi
 
-BRANCH="test4"
+BRANCH="test5"
 START_DIR=$(pwd)
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 TMP_DIR="$SCRIPT_DIR/_tmp"

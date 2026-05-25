@@ -3,11 +3,9 @@
 #include "peerlookup.h"
 
 
-#define HIDDEN_HEADER_LEN(val) ((val)&7)
-#define SKB_HIDDEN_HEADER_LEN(skb) HIDDEN_HEADER_LEN(((u8 *)(skb))[0])
-#define HIDDEN_TYPE(val) ((val)&7)
-#define SKB_HIDDEN_TYPE(skb) HIDDEN_TYPE(((u8 *)(skb))[1])
-#define XOR_HEAD(skb, mask) ((u8 *)(skb))[0]=(((u8 *)(skb))[0]&0xF0)|((((u8 *)(skb))[0]^(mask)[3])&0x0F)
+#define XOR_HEAD(skb, mask) ((u8 *)(skb))[0]=(((u8 *)(skb))[0]&0xF0)|((((u8 *)(skb))[0]^((u8 *)(mask))[3])&0x0F)
+#define MASK_HLEN(val, mask) ((val)^((u8 *)(mask))[7])
+#define SKB_HLEN(skb, qlen, mask) ((((u8 *)(skb))[0]&1) == 0 ? qlen : qlen + MASK_HLEN(((u8 *)(skb))[qlen], mask))
 
 
 static void xor_mac2(void *skb, size_t len, u32 zero, u32 *mask)
@@ -55,41 +53,40 @@ static void xor_data(void *skb, u32 *mask)
 size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg) 
 {
     int type;
-    size_t hlen;
+    size_t hlen = 0;
 
     if (unlikely(!pskb_may_pull(skb, 32)))
         return ERROR_HIDDEN_LEN;
 
     XOR_HEAD(skb->data, wg->static_identity.static_public);
-    hlen = HIDDEN_HEADER_LEN(((u8 *)(skb->data))[0]);
-
-    if (((u8 *)(skb->data))[0] & 0x80)
+    
+    if (likely((((u8 *)(skb->data))[0] & 0x80) == 0))
+    {
+        type = MESSAGE_DATA;
+        if (unlikely(((u8 *)(skb->data))[0] & 1))
+        {
+            hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_data), wg->static_identity.static_public);
+            skb_pull(skb, hlen);
+        }
+    }
+    else
     {
         if(((u8 *)(skb->data))[5] != 3)
         {
-            hlen += sizeof(struct QUIC_init);
+            hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_init), wg->static_identity.static_public);
             type = MESSAGE_HANDSHAKE_INITIATION;
         }
         else if(((u8 *)(skb->data))[9] != 0)
         {
-            hlen += sizeof(struct QUIC_resp);
+            hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_resp), wg->static_identity.static_public);
             type = MESSAGE_HANDSHAKE_RESPONSE;
         }
         else 
         {
-            hlen += sizeof(struct QUIC_cook);
+            hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_cook), wg->static_identity.static_public);
             type = MESSAGE_HANDSHAKE_COOKIE;
         }
         skb_pull(skb, hlen);
-    }
-    else
-    {
-        type = MESSAGE_DATA;
-        if (hlen > 0)
-        {
-            hlen += sizeof(struct QUIC_data);
-            skb_pull(skb, hlen);
-        }
     }
 
     switch (type) {
@@ -132,14 +129,19 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
 
 #define QUIC_END(data, quic, hlen) \
     quic->token_len = 0; \
-    quic->data_len = cpu_to_be16(0x4000 | (sizeof(*data)+hlen)); \
-    if (hlen > 0) get_random_bytes((u8 *)quic+sizeof(*quic), hlen);
+    quic->data_len = cpu_to_be16(0x4000 | (sizeof(*data)+hlen));
+
+#define QUIC_HLEN(quic, hlen, mask) \
+    if (hlen > 0) { \
+        if (hlen > 1) get_random_bytes((u8 *)quic+sizeof(*quic)+1, hlen-1); \
+        ((u8 *)quic)[sizeof(*quic)]=MASK_HLEN(hlen, mask); }
 
 static void add_quick_init(
     struct message_handshake_initiation *data, 
     struct QUIC_init *quic,
     u8 flags,
-    size_t hlen)
+    size_t hlen,
+    u8 *mask)
 {
     QUIC_START(flags);
 
@@ -150,13 +152,15 @@ static void add_quick_init(
     memcpy(quic->SCID, &data->sender_index, sizeof(quic->SCID));
 
     QUIC_END(data, quic, hlen);
+    QUIC_HLEN(quic, hlen, mask);
 }
 
 static void add_quick_resp(
     struct message_handshake_response *data, 
     struct QUIC_resp *quic,
     u8 flags,
-    size_t hlen)
+    size_t hlen,
+    u8 *mask)
 {
     QUIC_START(flags);
 
@@ -167,13 +171,15 @@ static void add_quick_resp(
     memcpy(quic->SCID, &data->sender_index, sizeof(quic->SCID));
 
     QUIC_END(data, quic, hlen);
+    QUIC_HLEN(quic, hlen, mask);
 }
 
 static void add_quick_cook(
     struct message_handshake_cookie *data, 
     struct QUIC_cook *quic,
     u8 flags,
-    size_t hlen)
+    size_t hlen,
+    u8 *mask)
 {
     QUIC_START(flags);
 
@@ -183,16 +189,23 @@ static void add_quick_cook(
     quic->SCID_len = 0;
 
     QUIC_END(data, quic, hlen);
+    QUIC_HLEN(quic, hlen, mask);
 }
 
 void skb_push_hidden_handshake(void *skb, void *buffer, struct wg_peer *peer)
 {
-    u8 type = ((u8 *)buffer)[0];
-    u8 flags = 0xC0 | (((u8)ktime_get_coarse_boottime_ns())&0x0F);
-    size_t hlen = HIDDEN_HEADER_LEN(flags);
     u8 *quic;
+    u32 noize = ktime_get_coarse_boottime_ns();
+    u8 type = ((u8 *)buffer)[0];
+    u8 flags = 0xC0 | (((u8)noize)&0x0F);
+    size_t hlen = 0;
     
-    ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
+    ((u32 *)buffer)[0] = noize;
+
+    if (flags&1) {
+        hlen = noize&HIDDEN_NOIZE;
+        if(hlen == 0) hlen = 1;
+    }
     
     switch (type) {
         case MESSAGE_HANDSHAKE_INITIATION:
@@ -200,7 +213,7 @@ void skb_push_hidden_handshake(void *skb, void *buffer, struct wg_peer *peer)
             add_quick_init(
                 (struct message_handshake_initiation *)buffer,
                 (struct QUIC_init *)quic, 
-                flags, hlen);
+                flags, hlen, peer->handshake.remote_static);
             xor_init(buffer, (u32 *)peer->handshake.remote_static);
             break;
 
@@ -209,7 +222,7 @@ void skb_push_hidden_handshake(void *skb, void *buffer, struct wg_peer *peer)
             add_quick_resp(
                 (struct message_handshake_response *)buffer,
                 (struct QUIC_resp *)quic, 
-                flags, hlen);
+                flags, hlen, peer->handshake.remote_static);
             xor_resp(buffer, (u32 *)peer->handshake.remote_static);
             break;
 
@@ -218,7 +231,7 @@ void skb_push_hidden_handshake(void *skb, void *buffer, struct wg_peer *peer)
             add_quick_cook(
                 (struct message_handshake_cookie *)buffer,
                 (struct QUIC_cook *)quic, 
-                flags, hlen);
+                flags, hlen, peer->handshake.remote_static);
             xor_cook(buffer, (u32 *)peer->handshake.remote_static);
             break;
     }
@@ -240,28 +253,32 @@ void skb_push_hidden_handshake_cookie(void *skb, void *buffer, struct wg_device 
 
 unsigned int hidden_data_header_len(unsigned int len)
 {
-    if(len != 32) return 0;
-
-    return HIDDEN_HEADER_LEN((unsigned int)ktime_get_coarse_boottime_ns()) + sizeof(struct QUIC_data);
+    if (unlikely(len == 32)) 
+    {
+        u8 hlen = ((u8)ktime_get_coarse_boottime_ns())&HIDDEN_NOIZE;
+        if (hlen > 0) return sizeof(struct QUIC_data) + hlen;
+    }
+    return 0;
 }
 
 void skb_push_hidden_data(void *skb, void *buffer, unsigned int hlen, struct wg_peer *peer)
 {
     u8 *quic = (u8 *)buffer;
 
-    if (hlen > 0) 
+    if (likely(hlen == 0)) 
     {
-        quic = (u8 *)skb_push(skb, hlen);
-        hlen -= sizeof(struct QUIC_data);
-        ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
-        quic[0] = (((u32 *)buffer)[0]&0x18) | 0x40 | hlen;
-        memcpy(((struct QUIC_data *)quic)->DCID, &((struct message_data *)buffer)->key_idx, 3);
-        if (hlen > 0) get_random_bytes(quic+sizeof(struct QUIC_data), hlen);
+        quic[0] = (((u8)ktime_get_coarse_boottime_ns())&0x1E) | 0x40;
+        memcpy(&quic[1], &((struct message_data *)buffer)->key_idx, 3);
     }
     else
     {
-        quic[0] = (((u8)ktime_get_coarse_boottime_ns())&0x18) | 0x40;
-        memcpy(&quic[1], &((struct message_data *)buffer)->key_idx, 3);
+        quic = (u8 *)skb_push(skb, hlen);
+        ((u32 *)buffer)[0] = ktime_get_coarse_boottime_ns();
+        quic[0] = (((u32 *)buffer)[0]&0x1E) | 0x41;
+        hlen -= sizeof(struct QUIC_data);
+        if (hlen > 1) get_random_bytes(quic+sizeof(struct QUIC_data)+1, hlen-1);
+        quic[sizeof(struct QUIC_data)] = MASK_HLEN(hlen, peer->handshake.remote_static);
+        memcpy(((struct QUIC_data *)quic)->DCID, &((struct message_data *)buffer)->key_idx, 3);
     }
 
     xor_data(buffer, (u32 *)peer->handshake.remote_static);
