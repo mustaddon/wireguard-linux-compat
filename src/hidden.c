@@ -63,15 +63,18 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
     if (likely((((u8 *)(skb->data))[0] & 0x80) == 0))
     {
         type = MESSAGE_DATA;
+
         if (unlikely(((u8 *)(skb->data))[0] & 1))
         {
             hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_data), wg->static_identity.static_public);
-            
             if (unlikely(!pskb_may_pull(skb, hlen)))
                 return ERROR_HIDDEN_LEN;
-
             skb_pull(skb, hlen);
         }
+
+        if (unlikely(!pskb_may_pull(skb, sizeof(struct message_data))))
+            return ERROR_HIDDEN_LEN;
+        xor_data(skb->data, (u32 *)wg->static_identity.static_public);
     }
     else
     {
@@ -79,51 +82,29 @@ size_t prepare_skb_hidden(struct sk_buff *skb, struct wg_device *wg)
         {
             hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_init), wg->static_identity.static_public);
             type = MESSAGE_HANDSHAKE_INITIATION;
+            if (unlikely(!pskb_may_pull(skb, hlen + sizeof(struct message_handshake_initiation))))
+                return ERROR_HIDDEN_LEN;
+            skb_pull(skb, hlen);
+            xor_init(skb->data, (u32 *)wg->static_identity.static_public);
         }
         else if(((u8 *)(skb->data))[9] != 0)
         {
             hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_resp), wg->static_identity.static_public);
             type = MESSAGE_HANDSHAKE_RESPONSE;
+            if (unlikely(!pskb_may_pull(skb, hlen + sizeof(struct message_handshake_response))))
+                return ERROR_HIDDEN_LEN;
+            skb_pull(skb, hlen);
+            xor_resp(skb->data, (u32 *)wg->static_identity.static_public);
         }
         else 
         {
             hlen = SKB_HLEN(skb->data, sizeof(struct QUIC_cook), wg->static_identity.static_public);
             type = MESSAGE_HANDSHAKE_COOKIE;
-        }
-
-        if (unlikely(!pskb_may_pull(skb, hlen)))
-            return ERROR_HIDDEN_LEN;
-
-        skb_pull(skb, hlen);
-    }
-
-    switch (type) {
-        case MESSAGE_DATA:
-            if (unlikely(!pskb_may_pull(skb, sizeof(struct message_data))))
+            if (unlikely(!pskb_may_pull(skb, hlen + sizeof(struct message_handshake_cookie))))
                 return ERROR_HIDDEN_LEN;
-            xor_data(skb->data, (u32 *)wg->static_identity.static_public);
-            break;
-
-        case MESSAGE_HANDSHAKE_INITIATION:
-            if (unlikely(!pskb_may_pull(skb, sizeof(struct message_handshake_initiation))))
-                return ERROR_HIDDEN_LEN;
-            xor_init(skb->data, (u32 *)wg->static_identity.static_public);
-            break;
-
-        case MESSAGE_HANDSHAKE_RESPONSE:
-            if (unlikely(!pskb_may_pull(skb, sizeof(struct message_handshake_response))))
-                return ERROR_HIDDEN_LEN;
-            xor_resp(skb->data, (u32 *)wg->static_identity.static_public);
-            break;
-
-        case MESSAGE_HANDSHAKE_COOKIE:
-            if (unlikely(!pskb_may_pull(skb, 8)))
-                return ERROR_HIDDEN_LEN;
+            skb_pull(skb, hlen);
             xor_cook(skb->data, (u32 *)wg->static_identity.static_public);
-            break;
-
-        default:
-            return ERROR_HIDDEN_LEN;
+        }
     }
 
     ((__le32 *)(skb->data))[0] = cpu_to_le32(type);
