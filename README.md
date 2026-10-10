@@ -1,8 +1,4 @@
-# WireGuard for Linux 3.10 - x.x
-
-WireGuard was merged into the Linux kernel.
-
-**More information may be found at [WireGuard.com](https://www.wireguard.com/).**
+# Custom WireGuard for Linux 3.10 - x.x
 
 ## Driver install script 
 ```bash
